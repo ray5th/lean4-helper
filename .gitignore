@@ -1,9 +1,0 @@
-.env
-.venv/
-venv/
-data/mathlib.index
-data/mathlib_meta.pkl
-__pycache__/
-*.pyc
-*.pyo
-.DS_Store
