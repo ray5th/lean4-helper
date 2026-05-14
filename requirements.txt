@@ -1,0 +1,9 @@
+lean-interact
+ollama
+langchain
+langchain-community
+langchain-ollama
+langgraph
+faiss-cpu
+rank-bm25
+sentence-transformers
