@@ -1,113 +1,126 @@
-"""
-retriever.py
-
-Builds and queries a FAISS index over Mathlib4 lemma docstrings.
-
-Usage:
-    # Build index from a jsonl file of lemmas:
-    build_index("data/mathlib_lemmas.jsonl", "data/mathlib.index")
-
-    # Query at runtime:
-    retriever = Retriever("data/mathlib.index", "data/mathlib_lemmas.jsonl")
-    lemmas = retriever.retrieve("commutativity of addition", k=5)
-"""
-
-import json
 import os
-import pickle
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
-import faiss
-import numpy as np
-from sentence_transformers import SentenceTransformer
+from langchain_community.retrievers import BM25Retriever
+from langchain_community.vectorstores import FAISS
+from langchain_community.cross_encoders import HuggingFaceCrossEncoder
+from langchain.retrievers import EnsembleRetriever
+from langchain.retrievers.document_compressors import CrossEncoderReranker
+from langchain.retrievers import ContextualCompressionRetriever
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_core.documents import Document
 
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-INDEX_FILE = "data/mathlib.index"
-META_FILE = "data/mathlib_meta.pkl"
+from mathlib_corpus import MathLibCorpus
+
+_DEFAULT_INDEX_DIR = Path(__file__).resolve().parent.parent / "data" / "mathlib_index"
+_EMBED_MODEL = "all-MiniLM-L6-v2"
+_RERANK_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
 
-class Retriever:
+class MathLibRetriever:
     """
-    Manages the FAISS index and performs semantic retrieval of Mathlib4 lemmas.
+    Hybrid FAISS + BM25 retriever with CrossEncoder reranking over Mathlib lemmas.
+
+    On first use, call build() to create and persist the index.
+    Subsequent runs load from disk automatically.
     """
 
     def __init__(
         self,
-        index_path: str = INDEX_FILE,
-        meta_path: str = META_FILE,
-        model_name: str = EMBEDDING_MODEL,
+        index_dir: Optional[str] = None,
+        top_k: int = 20,
+        rerank_top_k: int = 5,
     ):
-        self.model = SentenceTransformer(model_name)
-        self.index = faiss.read_index(index_path)
-        with open(meta_path, "rb") as f:
-            self.metadata = pickle.load(f)  # list of dicts: {name, type, doc}
+        self.index_dir = Path(index_dir) if index_dir else _DEFAULT_INDEX_DIR
+        self.top_k = top_k
+        self.rerank_top_k = rerank_top_k
+        self._retriever = None
 
-    def retrieve(self, query: str, k: int = 5) -> list[dict]:
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def build(self, mathlib_root: Optional[str] = None, max_files: Optional[int] = None) -> None:
         """
-        Return the top-k most relevant Mathlib4 lemmas for a given query.
+        Extract Mathlib documents, build FAISS + BM25 indices, and persist to disk.
+        Call this once (via scripts/build_index.py) before first use.
+        """
+        print("Extracting Mathlib corpus…")
+        corpus = MathLibCorpus(mathlib_root=mathlib_root)
+        docs = corpus.extract(max_files=max_files)
+        print(f"  {len(docs)} declarations extracted.")
+
+        embeddings = self._embeddings()
+
+        print("Building FAISS index…")
+        faiss_store = FAISS.from_documents(docs, embeddings)
+        self.index_dir.mkdir(parents=True, exist_ok=True)
+        faiss_store.save_local(str(self.index_dir))
+        print(f"  Index saved to {self.index_dir}")
+
+        self._retriever = self._build_retriever(faiss_store, docs)
+
+    def retrieve(self, query: str, k: Optional[int] = None) -> List[Document]:
+        """
+        Retrieve and rerank the most relevant Mathlib lemmas for a query.
 
         Args:
-            query: Natural language or Lean theorem statement.
-            k:     Number of results to return.
+            query: Natural-language or Lean-syntax query (e.g., proof goals + errors).
+            k: Number of results to return after reranking (defaults to self.rerank_top_k).
 
         Returns:
-            List of lemma dicts with keys 'name', 'type', 'doc'.
+            List of Documents ranked by relevance.
         """
-        embedding = self.model.encode([query], normalize_embeddings=True)
-        embedding = np.array(embedding, dtype=np.float32)
-        _, indices = self.index.search(embedding, k)
-        return [self.metadata[i] for i in indices[0] if i < len(self.metadata)]
+        if self._retriever is None:
+            self._load()
+        results = self._retriever.invoke(query)
+        return results[: k or self.rerank_top_k]
 
+    def is_index_built(self) -> bool:
+        return (self.index_dir / "index.faiss").exists()
 
-def build_index(
-    lemmas_jsonl: str = "data/mathlib_lemmas.jsonl",
-    index_path: str = INDEX_FILE,
-    meta_path: str = META_FILE,
-    model_name: str = EMBEDDING_MODEL,
-) -> None:
-    """
-    Build a FAISS index from a JSONL file of Mathlib4 lemmas.
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
 
-    Each line in `lemmas_jsonl` should be a JSON object with:
-        - "name": lemma name (str)
-        - "type": Lean type signature (str)
-        - "doc":  docstring or description (str, optional)
+    def _embeddings(self) -> HuggingFaceEmbeddings:
+        return HuggingFaceEmbeddings(model_name=_EMBED_MODEL)
 
-    Args:
-        lemmas_jsonl: Path to the input JSONL file.
-        index_path:   Where to save the FAISS index file.
-        meta_path:    Where to save the metadata pickle file.
-        model_name:   SentenceTransformer model to use for embeddings.
-    """
-    print(f"Loading lemmas from {lemmas_jsonl}...")
-    metadata = []
-    texts = []
-    with open(lemmas_jsonl, "r") as f:
-        for line in f:
-            entry = json.loads(line.strip())
-            metadata.append(entry)
-            # Build a rich text representation for embedding
-            text = f"{entry.get('name', '')} : {entry.get('type', '')}. {entry.get('doc', '')}"
-            texts.append(text)
+    def _load(self) -> None:
+        if not self.is_index_built():
+            raise RuntimeError(
+                f"No FAISS index found at {self.index_dir}. "
+                "Run `python scripts/build_index.py` first."
+            )
+        print("Loading FAISS index from disk…")
+        embeddings = self._embeddings()
+        faiss_store = FAISS.load_local(
+            str(self.index_dir),
+            embeddings,
+            allow_dangerous_deserialization=True,
+        )
 
-    print(f"Loaded {len(texts)} lemmas. Generating embeddings...")
-    model = SentenceTransformer(model_name)
-    embeddings = model.encode(texts, normalize_embeddings=True, show_progress_bar=True)
-    embeddings = np.array(embeddings, dtype=np.float32)
+        # Re-build BM25 from FAISS docstore
+        docs = list(faiss_store.docstore._dict.values())
+        self._retriever = self._build_retriever(faiss_store, docs)
 
-    print("Building FAISS index...")
-    dim = embeddings.shape[1]
-    index = faiss.IndexFlatIP(dim)  # Inner product = cosine similarity (normalized)
-    index.add(embeddings)
+    def _build_retriever(self, faiss_store: FAISS, docs: List[Document]):
+        faiss_retriever = faiss_store.as_retriever(
+            search_kwargs={"k": self.top_k}
+        )
+        bm25_retriever = BM25Retriever.from_documents(docs)
+        bm25_retriever.k = self.top_k
 
-    os.makedirs(Path(index_path).parent, exist_ok=True)
-    faiss.write_index(index, index_path)
-    with open(meta_path, "wb") as f:
-        pickle.dump(metadata, f)
+        ensemble = EnsembleRetriever(
+            retrievers=[faiss_retriever, bm25_retriever],
+            weights=[0.6, 0.4],
+        )
 
-    print(f"Index saved to {index_path} ({len(texts)} vectors, dim={dim})")
+        cross_encoder = HuggingFaceCrossEncoder(model_name=_RERANK_MODEL)
+        reranker = CrossEncoderReranker(model=cross_encoder, top_n=self.rerank_top_k)
 
-
-if __name__ == "__main__":
-    build_index()
+        return ContextualCompressionRetriever(
+            base_compressor=reranker,
+            base_retriever=ensemble,
+        )

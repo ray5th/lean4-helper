@@ -1,6 +1,9 @@
-anthropic>=0.30.0
-faiss-cpu>=1.8.0
-sentence-transformers>=2.7.0
-rich>=13.7.1
-pexpect>=4.9.0
-python-dotenv>=1.0.1
+lean-interact
+ollama
+langchain
+langchain-community
+langchain-ollama
+langgraph
+faiss-cpu
+rank-bm25
+sentence-transformers
