@@ -45,6 +45,17 @@ def _extract_lean_code(text: str) -> str:
     return text.strip()
 
 
+def _sanitize_imports(code: str) -> str:
+    """
+    LLMs often hallucinate Lean import paths. This function strips all `import`
+    lines from the generated code and replaces them with `import Mathlib`, which
+    is the correct single import for any Mathlib-based proof.
+    """
+    lines = code.splitlines()
+    non_import_lines = [l for l in lines if not l.strip().startswith("import ")]
+    return "import Mathlib\n\n" + "\n".join(non_import_lines).lstrip()
+
+
 def make_verify_node(lean_env: LeanEnvironment):
     def verify_node(state: ProofState) -> ProofState:
         print(f"\n--- Attempt {state['attempt'] + 1} / {state['max_retries']} ---")
@@ -89,7 +100,7 @@ def make_generate_node(chain: RAGProofChain):
             errors=state["errors"],
             retrieved_lemmas=state["retrieved_lemmas"],
         )
-        new_code = _extract_lean_code(raw)
+        new_code = _sanitize_imports(_extract_lean_code(raw))
 
         if not new_code or new_code.strip() == state["lean_code"].strip():
             print("LLM produced no changes.")
