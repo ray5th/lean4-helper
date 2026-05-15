@@ -9,8 +9,12 @@ from langchain_ollama import OllamaLLM
 _SYSTEM = (
     "You are an expert Lean 4 proof assistant with deep knowledge of Mathlib. "
     "Your task is to complete the proof by replacing every `sorry` with valid Lean 4 tactic code. "
-    "Use only Mathlib theorems and tactics. "
-    "Respond ONLY with the corrected Lean code inside a single ```lean ... ``` block."
+    "RULES:\n"
+    "1. Keep `import Mathlib` exactly as-is at the top. Do NOT add, remove, or change any import lines.\n"
+    "2. Do NOT add `open` statements unless they were already in the original code.\n"
+    "3. Keep the theorem signature exactly as given — do not change argument names or types.\n"
+    "4. Replace `sorry` with valid Lean 4 tactic(s). Prefer simple tactics: `simp`, `omega`, `ring`, `exact`, `apply`.\n"
+    "5. Respond ONLY with the complete corrected Lean code inside a single ```lean ... ``` block."
 )
 
 _HUMAN = """\
@@ -50,7 +54,13 @@ class RAGProofChain:
             ("system", _SYSTEM),
             ("human", _HUMAN),
         ])
-        llm = OllamaLLM(model=model_name)
+        # Disable thinking/chain-of-thought mode (qwen3, gemma3) and cap output
+        # so the agent doesn't spend minutes generating reasoning tokens.
+        llm = OllamaLLM(
+            model=model_name,
+            num_predict=1024,           # cap response length
+            options={"think": False},   # disable thinking mode (qwen3/gemma3)
+        )
         self._chain = prompt | llm | StrOutputParser()
 
     def generate(

@@ -22,28 +22,36 @@ def _find_mathlib_root() -> Optional[str]:
     """
     Returns the path to the Mathlib4 source directory, searching common locations.
     """
+    # 1. .lake/packages next to the current project file
+    here = Path(__file__).resolve().parent.parent
+    lake_pkg = here / ".lake" / "packages" / "mathlib"
+    if (lake_pkg / "Mathlib").exists():
+        return str(lake_pkg)
+
+    # 2. lean-interact's TempRequireProject cache
+    try:
+        from lean_interact.config import DEFAULT_CACHE_DIR
+        tmp_root = DEFAULT_CACHE_DIR / "tmp_projects"
+        for lean_ver_dir in sorted(tmp_root.iterdir(), reverse=True):
+            for project_dir in lean_ver_dir.iterdir():
+                candidate = project_dir / ".lake" / "packages" / "mathlib"
+                if (candidate / "Mathlib").exists():
+                    return str(candidate)
+    except Exception:
+        pass
+
+    # 3. Broad filesystem search in common Lean locations
     candidates = [
-        # Lake package cache (used by lean-interact's TempRequireProject)
         os.path.expanduser("~/.elan/toolchains"),
-        os.path.expanduser("~/.cache/mathlib"),
-        # Nix / Homebrew Lean setups
         "/usr/local/lib/lean",
         "/opt/homebrew/lib/lean",
     ]
-
-    # Also check for a .lake/packages directory next to the current file
-    here = Path(__file__).resolve().parent.parent
-    lake_pkg = here / ".lake" / "packages" / "mathlib" / "Mathlib"
-    if lake_pkg.exists():
-        return str(lake_pkg.parent)
-
     for root in candidates:
         if not os.path.isdir(root):
             continue
-        # Walk up to 4 levels looking for a Mathlib directory
         for dirpath, dirnames, _ in os.walk(root):
             depth = dirpath.replace(root, "").count(os.sep)
-            if depth > 4:
+            if depth > 6:
                 dirnames.clear()
                 continue
             if "Mathlib" in dirnames:
@@ -105,7 +113,10 @@ class MathLibCorpus:
                 "Pass mathlib_root explicitly or run `lake exe cache get` first."
             )
 
-        pattern = os.path.join(self.mathlib_root, "**", "*.lean")
+        # Prefer Mathlib/ subdirectory if it exists (avoids index-only files at root)
+        mathlib_src = os.path.join(self.mathlib_root, "Mathlib")
+        search_root = mathlib_src if os.path.isdir(mathlib_src) else self.mathlib_root
+        pattern = os.path.join(search_root, "**", "*.lean")
         files = glob.glob(pattern, recursive=True)
         if max_files:
             files = files[:max_files]
