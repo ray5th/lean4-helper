@@ -21,6 +21,7 @@ class ProofState(TypedDict):
     max_retries: int
     status: str          # "pending" | "success" | "failed"
     retrieved_lemmas: list
+    solved_at_attempt: int  # 0 = unsolved, else the attempt number that succeeded
 
 
 # ---------------------------------------------------------------------------
@@ -56,6 +57,16 @@ def _sanitize_imports(code: str) -> str:
     return "import Mathlib\n\n" + "\n".join(non_import_lines).lstrip()
 
 
+_THEOREM_KEYWORDS = ("example", "theorem ", "lemma ", "def ")
+
+
+def _count_theorem_blocks(code: str) -> int:
+    return sum(
+        1 for line in code.splitlines()
+        if any(line.strip().startswith(kw) for kw in _THEOREM_KEYWORDS)
+    )
+
+
 def make_verify_node(lean_env: LeanEnvironment):
     def verify_node(state: ProofState) -> ProofState:
         print(f"\n--- Attempt {state['attempt'] + 1} / {state['max_retries']} ---")
@@ -71,12 +82,14 @@ def make_verify_node(lean_env: LeanEnvironment):
                 f"Errors: {len(result['errors'])}, Goals: {len(result['goals'])}"
             )
 
+        solved_at = state["attempt"] + 1 if new_status == "success" else state["solved_at_attempt"]
         return {
             **state,
             "lean_code": code,
             "errors": result["errors"],
             "goals": result["goals"],
             "status": new_status,
+            "solved_at_attempt": solved_at,
         }
     return verify_node
 
@@ -105,6 +118,15 @@ def make_generate_node(chain: RAGProofChain):
         if not new_code or new_code.strip() == state["lean_code"].strip():
             print("LLM produced no changes.")
             return {**state, "attempt": state["attempt"] + 1, "status": "failed"}
+
+        original_blocks = _count_theorem_blocks(state["lean_code"])
+        generated_blocks = _count_theorem_blocks(new_code)
+        if original_blocks > 0 and generated_blocks < original_blocks:
+            print(
+                f"LLM dropped theorem statements "
+                f"({generated_blocks} of {original_blocks} preserved) — rejecting."
+            )
+            return {**state, "attempt": state["attempt"] + 1}
 
         _write_file(state["file_path"], new_code)
         print("File updated.")
@@ -165,9 +187,13 @@ class LangGraphAgent:
         self._max_retries = max_retries
 
     def solve_file(self, file_path: str) -> bool:
+        return self.solve_file_detailed(file_path)["success"]
+
+    def solve_file_detailed(self, file_path: str) -> dict:
+        """Returns {"success": bool, "solved_at_attempt": int, "total_attempts": int}."""
         if not os.path.exists(file_path):
             print(f"Error: {file_path} not found.")
-            return False
+            return {"success": False, "solved_at_attempt": 0, "total_attempts": 0}
 
         initial: ProofState = {
             "file_path": file_path,
@@ -178,7 +204,12 @@ class LangGraphAgent:
             "max_retries": self._max_retries,
             "status": "pending",
             "retrieved_lemmas": [],
+            "solved_at_attempt": 0,
         }
 
         final = self._graph.invoke(initial)
-        return final["status"] == "success"
+        return {
+            "success": final["status"] == "success",
+            "solved_at_attempt": final["solved_at_attempt"],
+            "total_attempts": final["attempt"],
+        }
