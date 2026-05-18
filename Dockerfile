@@ -24,12 +24,6 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Pre-warm the Lean + Mathlib environment so the first user request isn't slow.
-# Runs lean_interact with Mathlib once during the Docker build, triggering
-# Mathlib cache population. Failures are tolerated so the image still builds.
-RUN python3 -c "import sys; sys.path.insert(0, '/app/src'); from lean_verifier import LeanEnvironment; env = LeanEnvironment(use_mathlib=True); env.verify_proof('import Mathlib\n\n#check Nat.add_comm'); env.close()" \
-    || echo "Lean warm-up skipped (non-fatal)"
-
 EXPOSE 7860
 ENV GRADIO_SERVER_NAME=0.0.0.0
 
