@@ -3,6 +3,8 @@ groq
 langchain
 langchain-community
 langchain-groq
+langchain-huggingface
+langchain-classic
 langgraph
 faiss-cpu
 rank-bm25
