@@ -35,44 +35,54 @@ CUSTOM_CSS = """
     padding: 0 !important;
     margin: 0 !important;
 }
+footer, .show-api { display: none !important; }
+.gradio-container > .main, .gradio-container .app { padding: 0 !important; gap: 0 !important; }
+.block, .gr-block, .form { background: transparent !important; border: none !important; border-radius: 0 !important; box-shadow: none !important; padding: 0 !important; margin: 0 !important; }
 
-footer { display: none !important; }
-.show-api { display: none !important; }
-
-/* ----- Top title bar (VSCode menu strip) ----- */
-#title-bar {
-    background: #323233;
-    border-bottom: 1px solid #1e1e1e;
-    padding: 6px 16px;
-    font-size: 13px;
-    color: #cccccc;
+/* ----- Top toolbar ----- */
+#top-toolbar {
     display: flex;
     align-items: center;
     gap: 16px;
+    background: #323233;
+    border-bottom: 1px solid #1e1e1e;
+    padding: 6px 16px;
+    color: #cccccc;
+    font-size: 13px;
 }
-
-#title-bar .logo {
+#top-toolbar .logo {
     color: #D97757;
     font-weight: 700;
     letter-spacing: 0.3px;
+    margin-right: 8px;
 }
+#top-toolbar .spacer { flex: 1; }
 
-#title-bar .subtle {
-    color: #858585;
-    font-size: 12px;
+#top-toolbar .gradio-dropdown,
+#top-toolbar .gradio-slider {
+    min-width: 0 !important;
+    margin: 0 !important;
 }
+#top-toolbar .gradio-dropdown { width: 220px !important; }
+#top-toolbar .gradio-slider  { width: 180px !important; }
+#top-toolbar label { display: none !important; }
 
-/* ----- Tab bar above editors ----- */
-.editor-tab {
+/* ----- Tab header (filename + buttons) ----- */
+.tab-header {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
     background: #2d2d30 !important;
-    border: none !important;
     border-bottom: 1px solid #1e1e1e !important;
     padding: 0 !important;
     margin: 0 !important;
+    flex-wrap: nowrap !important;
+    min-height: 32px;
 }
-
-.editor-tab .tab-label {
-    display: inline-block;
+.tab-header > * { margin: 0 !important; }
+.tab-label {
+    display: inline-flex;
+    align-items: center;
     background: #1e1e1e;
     color: #ffffff;
     padding: 8px 14px;
@@ -80,108 +90,78 @@ footer { display: none !important; }
     border-right: 1px solid #252526;
     border-top: 2px solid #D97757;
     font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, monospace;
+    flex: 0 0 auto;
+}
+.tab-header-spacer { flex: 1 !important; }
+
+/* Tab-header buttons (Solve / Reset / Regenerate / Copy) */
+.tab-btn button {
+    background: transparent !important;
+    color: #cccccc !important;
+    border: 1px solid transparent !important;
+    border-radius: 3px !important;
+    padding: 3px 10px !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    min-width: 0 !important;
+    box-shadow: none !important;
+    margin: 0 6px 0 0 !important;
+    line-height: 1.4 !important;
+    cursor: pointer;
+}
+.tab-btn button:hover {
+    background: #3e3e42 !important;
+    color: #ffffff !important;
+}
+.tab-btn-primary button {
+    background: #D97757 !important;
+    color: #ffffff !important;
+}
+.tab-btn-primary button:hover {
+    background: #c56a4d !important;
+    color: #ffffff !important;
 }
 
-.editor-tab .tab-label-inactive {
-    background: #2d2d30;
-    color: #969696;
-    border-top: 2px solid transparent;
-}
-
-/* ----- Code editor styling (Monaco/CodeMirror overrides) ----- */
+/* ----- Code editor ----- */
 .cm-editor {
     background: #1e1e1e !important;
     font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, monospace !important;
     font-size: 13px !important;
     line-height: 1.6 !important;
 }
-
 .cm-content { color: #d4d4d4 !important; }
 .cm-gutters { background: #1e1e1e !important; color: #858585 !important; border-right: 1px solid #252526 !important; }
-.cm-activeLine { background: #2a2d2e !important; }
-.cm-activeLineGutter { background: #2a2d2e !important; color: #c6c6c6 !important; }
+.cm-activeLine, .cm-activeLineGutter { background: #2a2d2e !important; }
 .cm-cursor { border-left-color: #D97757 !important; }
 
-/* Code block wrapper */
-.block.gr-block, .gradio-container .block {
-    background: #1e1e1e !important;
-    border: 1px solid #2d2d30 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-}
+/* Pane container — vertical divider between left/right */
+.pane-left  { border-right: 1px solid #1e1e1e; }
 
-/* Hide Gradio's default labels above code blocks (we use our own tabs) */
-.gr-code label, .code-container > label {
-    display: none !important;
-}
-
-/* ----- Sidebar / control panel ----- */
-.control-panel {
+/* ----- Logs accordion ----- */
+.gradio-accordion {
     background: #252526 !important;
-    border-left: 1px solid #1e1e1e !important;
-    padding: 16px !important;
+    border-top: 1px solid #1e1e1e !important;
 }
-
-/* ----- Labels ----- */
-label, .label-wrap {
+.gradio-accordion > button {
+    background: #252526 !important;
     color: #cccccc !important;
     font-size: 11px !important;
     text-transform: uppercase !important;
     letter-spacing: 0.6px !important;
-    font-weight: 600 !important;
-    margin-bottom: 6px !important;
-}
-
-/* ----- Dropdown ----- */
-.gradio-dropdown, select, .wrap.dropdown {
-    background: #3c3c3c !important;
-    color: #d4d4d4 !important;
-    border: 1px solid #3e3e42 !important;
-    border-radius: 2px !important;
-    font-size: 12px !important;
-}
-
-.gradio-dropdown input { color: #d4d4d4 !important; }
-
-/* ----- Slider ----- */
-input[type="range"] { accent-color: #D97757 !important; }
-.gradio-slider .head { color: #d4d4d4 !important; }
-
-/* ----- Buttons ----- */
-button.lg, button.primary, .gr-button-primary {
-    background: #D97757 !important;
-    color: #ffffff !important;
+    padding: 6px 16px !important;
     border: none !important;
-    border-radius: 3px !important;
-    padding: 8px 18px !important;
-    font-weight: 500 !important;
-    font-size: 12px !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.5px !important;
-    box-shadow: none !important;
-    transition: background 0.15s ease;
 }
-
-button.lg:hover, button.primary:hover, .gr-button-primary:hover {
-    background: #c56a4d !important;
-}
-
-button.lg:disabled {
-    background: #555 !important;
-    cursor: not-allowed !important;
-}
-
-/* ----- Textbox / output ----- */
-textarea, .gradio-textbox textarea, .gr-text-input {
+.gradio-accordion textarea {
     background: #1e1e1e !important;
     color: #d4d4d4 !important;
-    border: 1px solid #2d2d30 !important;
-    border-radius: 2px !important;
+    border: none !important;
     font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, monospace !important;
     font-size: 12px !important;
 }
 
-/* ----- Status bar (VSCode bottom strip) ----- */
+/* ----- Status bar ----- */
 #status-bar {
     background: #D97757;
     color: #ffffff;
@@ -192,26 +172,31 @@ textarea, .gradio-textbox textarea, .gr-text-input {
     align-items: center;
     gap: 16px;
 }
-
 #status-bar .pill {
     padding: 1px 8px;
-    background: rgba(0,0,0,0.15);
+    background: rgba(0,0,0,0.18);
     border-radius: 2px;
 }
 
-/* ----- Layout tweaks ----- */
-.gr-row, .row { gap: 0 !important; }
-.gr-column, .column { gap: 8px !important; }
-.gradio-container > div { gap: 0 !important; }
+/* ----- Dropdown / slider chrome ----- */
+.gradio-dropdown .wrap, .gradio-dropdown input {
+    background: #3c3c3c !important;
+    color: #d4d4d4 !important;
+    border: 1px solid #3e3e42 !important;
+    border-radius: 2px !important;
+    font-size: 12px !important;
+}
+input[type="range"] { accent-color: #D97757 !important; }
+.gradio-slider .head, .gradio-slider input { color: #d4d4d4 !important; font-size: 12px !important; }
 """
 
 
-def solve_proof(lean_code: str, model_name: str, max_retries: int) -> tuple[str, str, str]:
+def solve_proof(lean_code: str, model_name: str, max_retries: int):
     if not lean_code.strip():
-        return "● No input.", "", ""
+        return _status_html("idle", "No input"), "", ""
 
     if not os.environ.get("GROQ_API_KEY"):
-        return "● GROQ_API_KEY missing — add it as a Space secret.", "", ""
+        return _status_html("err", "GROQ_API_KEY missing — add it as a Space secret"), "", ""
 
     tmp = tempfile.NamedTemporaryFile(suffix=".lean", mode="w", delete=False, dir="/tmp")
     try:
@@ -229,16 +214,20 @@ def solve_proof(lean_code: str, model_name: str, max_retries: int) -> tuple[str,
         logs = log_buf.getvalue()
 
         if result["success"]:
-            status = f"✓ Verified on attempt {result['solved_at_attempt']} / {result['total_attempts']}"
+            status = _status_html("ok", f"✓ Verified on attempt {result['solved_at_attempt']} / {result['total_attempts']}")
         else:
-            status = f"✗ No proof found after {result['total_attempts']} attempts"
+            status = _status_html("err", f"✗ No proof found after {result['total_attempts']} attempts")
 
         return status, final_code, logs
 
     except Exception as exc:
-        return f"✗ Error: {exc}", "", ""
+        return _status_html("err", f"✗ Error: {exc}"), "", ""
     finally:
         os.unlink(tmp.name)
+
+
+def _status_html(pill: str, message: str) -> str:
+    return f'<div id="status-bar"><span class="pill">{pill}</span><span>{message}</span></div>'
 
 
 with gr.Blocks(
@@ -251,70 +240,89 @@ with gr.Blocks(
     ),
     css=CUSTOM_CSS,
 ) as demo:
-    gr.HTML(
-        """
-        <div id="title-bar">
-            <span class="logo">◆ Lean 4 Proof Assistant</span>
-            <span class="subtle">— Mathlib RAG · Groq · LangGraph</span>
-        </div>
-        """
-    )
+    # ─── Top toolbar ──────────────────────────────────────────────
+    with gr.Row(elem_id="top-toolbar"):
+        gr.HTML('<span class="logo">◆ Lean 4 Proof Assistant</span>')
+        gr.HTML('<span class="spacer"></span>')
+        model_dropdown = gr.Dropdown(
+            choices=GROQ_MODELS,
+            value=GROQ_MODELS[0],
+            show_label=False,
+            container=False,
+        )
+        retries_slider = gr.Slider(
+            minimum=1, maximum=10, value=5, step=1,
+            show_label=False,
+            container=False,
+        )
 
+    # ─── Two-pane split ───────────────────────────────────────────
     with gr.Row(equal_height=True):
-        # Left pane: editor
-        with gr.Column(scale=3):
-            gr.HTML('<div class="editor-tab"><span class="tab-label">theorem.lean</span></div>')
+        # Left pane: input editor
+        with gr.Column(scale=1, elem_classes="pane-left"):
+            with gr.Row(elem_classes="tab-header"):
+                gr.HTML('<span class="tab-label">theorem.lean</span>')
+                gr.HTML('<span class="tab-header-spacer"></span>')
+                solve_btn = gr.Button("▶ Solve", elem_classes="tab-btn tab-btn-primary")
+                reset_btn = gr.Button("⟲ Reset", elem_classes="tab-btn")
             lean_input = gr.Code(
                 language=None,
                 value=EXAMPLE_CODE,
-                lines=22,
+                lines=24,
                 show_label=False,
+                container=False,
             )
 
-        # Right pane: output
-        with gr.Column(scale=3):
-            gr.HTML('<div class="editor-tab"><span class="tab-label">proof.lean</span><span class="tab-label tab-label-inactive">logs</span></div>')
+        # Right pane: generated proof
+        with gr.Column(scale=1):
+            with gr.Row(elem_classes="tab-header"):
+                gr.HTML('<span class="tab-label">proof.lean</span>')
+                gr.HTML('<span class="tab-header-spacer"></span>')
+                regen_btn = gr.Button("⟲ Regenerate", elem_classes="tab-btn")
+                copy_btn = gr.Button("⎘ Copy", elem_classes="tab-btn")
             code_output = gr.Code(
                 language=None,
                 interactive=False,
-                lines=14,
+                lines=24,
                 show_label=False,
-            )
-            logs_output = gr.Textbox(
-                interactive=False,
-                lines=7,
-                show_label=False,
-                placeholder="agent logs will stream here…",
+                container=False,
             )
 
-        # Far right: controls
-        with gr.Column(scale=1, elem_classes="control-panel"):
-            gr.HTML('<div style="color:#858585;font-size:11px;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:12px;">Configuration</div>')
-            model_dropdown = gr.Dropdown(
-                choices=GROQ_MODELS,
-                value=GROQ_MODELS[0],
-                label="Model",
-                show_label=True,
-            )
-            retries_slider = gr.Slider(
-                minimum=1, maximum=10, value=5, step=1,
-                label="Max retries",
-                show_label=True,
-            )
-            submit_btn = gr.Button("Solve Proof", variant="primary", size="lg")
-            gr.HTML('<div style="color:#858585;font-size:11px;margin-top:12px;line-height:1.5;">Proofs typically take 1–5 minutes. The agent will retry on failure.</div>')
+    # ─── Collapsible logs panel ───────────────────────────────────
+    with gr.Accordion("▾ Logs", open=False):
+        logs_output = gr.Textbox(
+            interactive=False,
+            lines=8,
+            show_label=False,
+            container=False,
+            placeholder="agent logs will appear here…",
+        )
 
-    status_output = gr.HTML('<div id="status-bar"><span class="pill">idle</span><span>ready</span></div>')
+    # ─── Status bar ───────────────────────────────────────────────
+    status_output = gr.HTML(_status_html("idle", "ready"))
 
-    def wrap_status(status: str, code: str, logs: str):
-        pill = "ok" if status.startswith("✓") else ("err" if status.startswith("✗") else "...")
-        html = f'<div id="status-bar"><span class="pill">{pill}</span><span>{status}</span></div>'
-        return html, code, logs
-
-    submit_btn.click(
-        lambda code, model, retries: wrap_status(*solve_proof(code, model, retries)),
+    # ─── Wiring ───────────────────────────────────────────────────
+    solve_btn.click(
+        solve_proof,
         inputs=[lean_input, model_dropdown, retries_slider],
         outputs=[status_output, code_output, logs_output],
+    )
+
+    regen_btn.click(
+        solve_proof,
+        inputs=[lean_input, model_dropdown, retries_slider],
+        outputs=[status_output, code_output, logs_output],
+    )
+
+    reset_btn.click(
+        lambda: EXAMPLE_CODE,
+        outputs=lean_input,
+    )
+
+    copy_btn.click(
+        fn=None,
+        inputs=code_output,
+        js="(code) => { navigator.clipboard.writeText(code); return []; }",
     )
 
 if __name__ == "__main__":
