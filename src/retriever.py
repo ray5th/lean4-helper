@@ -35,6 +35,7 @@ class MathLibRetriever:
         self.top_k = top_k
         self.rerank_top_k = rerank_top_k
         self._retriever = None
+        self._missing_index_warned = False
 
     # ------------------------------------------------------------------
     # Public API
@@ -72,6 +73,16 @@ class MathLibRetriever:
             List of Documents ranked by relevance.
         """
         if self._retriever is None:
+            if not self.is_index_built():
+                if not self._missing_index_warned:
+                    print(
+                        f"  [retriever] No FAISS index at {self.index_dir} — "
+                        "skipping Mathlib RAG. The LLM will solve from its training "
+                        "knowledge of Mathlib only. Run `python scripts/build_index.py` "
+                        "to enable retrieval-augmented generation."
+                    )
+                    self._missing_index_warned = True
+                return []
             self._load()
         results = self._retriever.invoke(query)
         return results[: k or self.rerank_top_k]

@@ -176,7 +176,7 @@ def build_graph(lean_env: LeanEnvironment, retriever: MathLibRetriever, chain: R
 class LangGraphAgent:
     def __init__(
         self,
-        model_name: str = "qwen3-vl:4b",
+        model_name: str = "llama-3.3-70b-versatile",
         max_retries: int = 5,
         index_dir: str | None = None,
     ):

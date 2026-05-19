@@ -1,3 +1,13 @@
+---
+title: Lean 4 Proof Assistant
+emoji: 🔮
+colorFrom: yellow
+colorTo: red
+sdk: docker
+app_file: app.py
+pinned: false
+---
+
 ## Brief Non-Technical MVP: AI Lean 4 Proof Assistant
 
 ### Project goal

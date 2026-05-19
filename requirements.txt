@@ -1,9 +1,12 @@
 lean-interact
-ollama
+groq
 langchain
 langchain-community
-langchain-ollama
+langchain-groq
+langchain-huggingface
+langchain-classic
 langgraph
 faiss-cpu
 rank-bm25
 sentence-transformers
+gradio

@@ -3,7 +3,7 @@ from typing import List
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_ollama import OllamaLLM
+from langchain_groq import ChatGroq
 
 
 _SYSTEM = """\
@@ -108,18 +108,12 @@ class RAGProofChain:
     LangChain LCEL chain: retrieved context + proof state → corrected Lean code.
     """
 
-    def __init__(self, model_name: str = "qwen3-vl:4b"):
+    def __init__(self, model_name: str = "llama-3.3-70b-versatile"):
         prompt = ChatPromptTemplate.from_messages([
             ("system", _SYSTEM),
             ("human", _HUMAN),
         ])
-        # Disable thinking/chain-of-thought mode (qwen3, gemma3) and cap output
-        # so the agent doesn't spend minutes generating reasoning tokens.
-        llm = OllamaLLM(
-            model=model_name,
-            num_predict=1024,           # cap response length
-            options={"think": False},   # disable thinking mode (qwen3/gemma3)
-        )
+        llm = ChatGroq(model=model_name, max_tokens=1024)
         self._chain = prompt | llm | StrOutputParser()
 
     def generate(

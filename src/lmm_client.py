@@ -1,42 +1,36 @@
-import ollama
-from typing import List, Dict, Any, Optional
+from groq import Groq
+from typing import List, Optional
+
 
 class LMMClient:
     """
-    Client for interacting with local LMMs via Ollama.
-    Focuses on Qwen3-VL:4B for high-reasoning tasks.
+    Client for interacting with LLMs via Groq API.
     """
-    
-    def __init__(self, model_name: str = "qwen3-vl:4b"):
+
+    def __init__(self, model_name: str = "llama-3.3-70b-versatile"):
         self.model_name = model_name
+        self._client = Groq()
 
     def chat(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        """
-        Sends a chat request to the model.
-        """
         messages = []
         if system_prompt:
-            messages.append({'role': 'system', 'content': system_prompt})
-        
-        messages.append({'role': 'user', 'content': prompt})
-        
-        response = ollama.chat(
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        response = self._client.chat.completions.create(
             model=self.model_name,
-            messages=messages
+            messages=messages,
+            max_tokens=1024,
         )
-        return response['message']['content']
+        return response.choices[0].message.content
 
     def generate_proof_steps(self, lean_code: str, goals: List[str], errors: List[str]) -> str:
-        """
-        Specific helper to generate proof steps based on current Lean state.
-        """
         system_prompt = (
             "You are an expert Lean 4 proof assistant. "
             "Your goal is to complete the proof by replacing 'sorry' with valid Lean 4 code. "
             "Use Mathlib theorems where appropriate. "
             "Respond ONLY with the corrected Lean code block."
         )
-        
         prompt = f"""
 Current Lean Code:
 ```lean
