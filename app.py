@@ -2,13 +2,94 @@ import io
 import os
 import sys
 import tempfile
-from contextlib import redirect_stdout
+import threading
 
 import gradio as gr
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 from langgraph_agent import LangGraphAgent
+
+
+# ---------------------------------------------------------------------------
+# Thread-safe stdout capture.
+#
+# The previous implementation wrapped each call in `contextlib.redirect_stdout`,
+# which rebinds the process-wide `sys.stdout`. Under concurrent solve_proof
+# invocations (e.g. multiple Gradio users), the most-recent rebinding wins for
+# every thread, so logs land in the wrong caller's buffer (or get lost when
+# one call exits its `with` block and restores stdout while another is mid-run).
+#
+# We replace it with a thread-local proxy installed once on `sys.stdout`. Each
+# call pushes its own StringIO onto its thread-local stack via
+# `_capture_stdout()`; prints from other threads continue to land in their own
+# buffers (or in the real stdout if they haven't installed one).
+# ---------------------------------------------------------------------------
+
+class _ThreadLocalStdout:
+    """A `sys.stdout` proxy that dispatches writes to a per-thread buffer."""
+
+    def __init__(self, real_stdout):
+        self._real = real_stdout
+        self._tls = threading.local()
+
+    def _current(self):
+        stack = getattr(self._tls, "stack", None)
+        if stack:
+            return stack[-1]
+        return self._real
+
+    # File-like protocol used by `print()`.
+    def write(self, s):
+        return self._current().write(s)
+
+    def flush(self):
+        try:
+            return self._current().flush()
+        except Exception:
+            return None
+
+    def isatty(self):
+        try:
+            return self._real.isatty()
+        except Exception:
+            return False
+
+    def fileno(self):
+        return self._real.fileno()
+
+    # Stack management ------------------------------------------------------
+    def push(self, buf):
+        stack = getattr(self._tls, "stack", None)
+        if stack is None:
+            stack = []
+            self._tls.stack = stack
+        stack.append(buf)
+
+    def pop(self):
+        stack = getattr(self._tls, "stack", None)
+        if stack:
+            stack.pop()
+
+
+_STDOUT_PROXY = _ThreadLocalStdout(sys.stdout)
+sys.stdout = _STDOUT_PROXY
+
+
+class _capture_stdout:
+    """Context manager that captures stdout for the current thread only."""
+
+    def __init__(self, buf):
+        self._buf = buf
+
+    def __enter__(self):
+        _STDOUT_PROXY.push(self._buf)
+        return self._buf
+
+    def __exit__(self, exc_type, exc, tb):
+        _STDOUT_PROXY.pop()
+        return False
+
 
 GROQ_MODELS = [
     "llama-3.3-70b-versatile",
@@ -198,17 +279,21 @@ def solve_proof(lean_code: str, model_name: str, max_retries: int):
     if not os.environ.get("GROQ_API_KEY"):
         return _status_html("err", "GROQ_API_KEY missing — add it as a Space secret"), "", ""
 
-    tmp = tempfile.NamedTemporaryFile(suffix=".lean", mode="w", delete=False, dir="/tmp")
+    tmp_path = None
     try:
+        tmp = tempfile.NamedTemporaryFile(suffix=".lean", mode="w", delete=False, dir="/tmp")
+        tmp_path = tmp.name
         tmp.write(lean_code)
         tmp.close()
 
         log_buf = io.StringIO()
-        with redirect_stdout(log_buf):
+        # Thread-local stdout capture so concurrent solve_proof calls don't
+        # share a single rebound sys.stdout.
+        with _capture_stdout(log_buf):
             agent = LangGraphAgent(model_name=model_name, max_retries=int(max_retries))
-            result = agent.solve_file_detailed(tmp.name)
+            result = agent.solve_file_detailed(tmp_path)
 
-        with open(tmp.name) as f:
+        with open(tmp_path) as f:
             final_code = f.read()
 
         logs = log_buf.getvalue()
@@ -223,7 +308,11 @@ def solve_proof(lean_code: str, model_name: str, max_retries: int):
     except Exception as exc:
         return _status_html("err", f"✗ Error: {exc}"), "", ""
     finally:
-        os.unlink(tmp.name)
+        if tmp_path is not None:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
 
 def _status_html(pill: str, message: str) -> str:
