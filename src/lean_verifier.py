@@ -1,3 +1,4 @@
+import threading
 from typing import Dict, Any, List
 
 from lean_interact import LeanREPLConfig, LeanServer, Command, TempRequireProject, LeanRequire
@@ -6,6 +7,10 @@ from lean_interact import LeanREPLConfig, LeanServer, Command, TempRequireProjec
 class LeanEnvironment:
     """
     Manages the Lean REPL environment for verifying Lean 4 proofs.
+
+    Safe to share across threads: `verify_proof` serializes concurrent calls
+    behind a lock, because the underlying LeanServer is a single-process
+    stdin/stdout pipe and would otherwise interleave commands.
     """
 
     def __init__(self, use_mathlib: bool = True, lean_version: str = "v4.8.0"):
@@ -31,6 +36,7 @@ class LeanEnvironment:
             self.config = LeanREPLConfig(lean_version=self.lean_version)
 
         self.server = LeanServer(self.config)
+        self._lock = threading.Lock()
 
     def verify_proof(self, lean_code: str) -> Dict[str, Any]:
         """
@@ -54,8 +60,10 @@ class LeanEnvironment:
 
         # Guard: LeanServer can raise on disconnect / crash / OOM. Surface as a
         # failure result so the agent's retry loop continues instead of dying.
+        # The lock serializes concurrent requests since LeanServer is single-process.
         try:
-            response = self.server.run(Command(cmd=lean_code))
+            with self._lock:
+                response = self.server.run(Command(cmd=lean_code))
         except Exception as exc:
             return {
                 "status": "failure",

@@ -130,9 +130,19 @@ def make_retrieve_node(retriever: MathLibRetriever):
     return retrieve_node
 
 
-def make_generate_node(chain: RAGProofChain):
+def make_generate_node(strong_chain: RAGProofChain, fast_chain: RAGProofChain | None = None):
+    """
+    If `fast_chain` is given, attempt 0 uses it (cheaper / faster model);
+    subsequent attempts escalate to `strong_chain`. This catches the easy
+    proofs in a few hundred ms before paying for the bigger model.
+    """
     def generate_node(state: ProofState) -> ProofState:
-        print("Generating proof with LLM…")
+        if fast_chain is not None and state["attempt"] == 0:
+            chain = fast_chain
+            print("Generating proof with LLM (fast model, first attempt)…")
+        else:
+            chain = strong_chain
+            print("Generating proof with LLM…")
         raw = chain.generate(
             lean_code=state["lean_code"],
             goals=state["goals"],
@@ -187,12 +197,17 @@ def should_continue(state: ProofState) -> str:
 # Graph assembly
 # ---------------------------------------------------------------------------
 
-def build_graph(lean_env: LeanEnvironment, retriever: MathLibRetriever, chain: RAGProofChain):
+def build_graph(
+    lean_env: LeanEnvironment,
+    retriever: MathLibRetriever,
+    chain: RAGProofChain,
+    fast_chain: RAGProofChain | None = None,
+):
     g = StateGraph(ProofState)
 
     g.add_node("verify", make_verify_node(lean_env))
     g.add_node("retrieve", make_retrieve_node(retriever))
-    g.add_node("generate", make_generate_node(chain))
+    g.add_node("generate", make_generate_node(chain, fast_chain))
 
     g.set_entry_point("verify")
     g.add_conditional_edges("verify", should_continue, {"retrieve": "retrieve", END: END})
@@ -213,11 +228,22 @@ class LangGraphAgent:
         max_retries: int = 5,
         index_dir: str | None = None,
         api_key: str | None = None,
+        fast_model: str | None = None,
+        lean_env: LeanEnvironment | None = None,
+        retriever: MathLibRetriever | None = None,
     ):
-        self._lean_env = LeanEnvironment(use_mathlib=True)
-        self._retriever = MathLibRetriever(index_dir=index_dir)
+        # Reuse pre-built heavyweight components when given. This lets a hosting
+        # process (e.g. the Gradio app) cache the Lean REPL and FAISS index
+        # once at startup instead of rebuilding them on every solve_proof call.
+        self._lean_env = lean_env if lean_env is not None else LeanEnvironment(use_mathlib=True)
+        self._retriever = retriever if retriever is not None else MathLibRetriever(index_dir=index_dir)
         self._chain = RAGProofChain(model_name=model_name, api_key=api_key)
-        self._graph = build_graph(self._lean_env, self._retriever, self._chain)
+        self._fast_chain = (
+            RAGProofChain(model_name=fast_model, api_key=api_key)
+            if fast_model and fast_model != model_name
+            else None
+        )
+        self._graph = build_graph(self._lean_env, self._retriever, self._chain, self._fast_chain)
         self._max_retries = max_retries
 
     def solve_file(self, file_path: str) -> bool:

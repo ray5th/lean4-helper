@@ -124,7 +124,15 @@ class SolveProofFuzzTests(unittest.TestCase):
         )
         self._ntf_patch.start()
 
+        # Don't touch the real Lean REPL / FAISS retriever just because we're
+        # exercising app.solve_proof in tests — return harmless mocks.
+        self._components_patch = mock.patch.object(
+            app, "_get_components", return_value=(mock.MagicMock(), mock.MagicMock())
+        )
+        self._components_patch.start()
+
     def tearDown(self):
+        self._components_patch.stop()
         self._ntf_patch.stop()
         # Best-effort: clean up anything the test leaked so /tmp doesn't fill.
         for path in self._captured_paths:

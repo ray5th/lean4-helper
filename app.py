@@ -9,6 +9,36 @@ import gradio as gr
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 from langgraph_agent import LangGraphAgent
+from lean_verifier import LeanEnvironment
+from retriever import MathLibRetriever
+
+
+# ---------------------------------------------------------------------------
+# Cached heavyweight components.
+#
+# `LeanEnvironment` spawns a Lean REPL and loads Mathlib (5-15s cold).
+# `MathLibRetriever` loads the ~200MB FAISS index + cross-encoder model.
+# Without caching, every solve_proof call paid this cost. We build them once
+# on first use and share across requests; LeanEnvironment.verify_proof has
+# its own lock so concurrent solves serialize at the Lean step but parallel
+# everywhere else.
+# ---------------------------------------------------------------------------
+
+_COMPONENT_LOCK = threading.Lock()
+_LEAN_ENV: LeanEnvironment | None = None
+_RETRIEVER: MathLibRetriever | None = None
+
+
+def _get_components():
+    global _LEAN_ENV, _RETRIEVER
+    with _COMPONENT_LOCK:
+        if _LEAN_ENV is None:
+            print("Initializing Lean environment (one-time)…")
+            _LEAN_ENV = LeanEnvironment(use_mathlib=True)
+        if _RETRIEVER is None:
+            print("Loading FAISS retriever (one-time)…")
+            _RETRIEVER = MathLibRetriever()
+        return _LEAN_ENV, _RETRIEVER
 
 
 # ---------------------------------------------------------------------------
@@ -371,12 +401,24 @@ def solve_proof(lean_code: str, model_name: str, max_retries: int, anthropic_api
         tmp.write(lean_code)
         tmp.close()
 
+        # Two-stage retry: for Groq, try the cheap 8b on attempt 0 and
+        # escalate to the user's chosen model on retry. Skip for Claude
+        # (no clear cheap counterpart) and for users who explicitly picked 8b.
+        fast_model = None
+        if not claude and model_name != "llama-3.1-8b-instant":
+            fast_model = "llama-3.1-8b-instant"
+
+        lean_env, retriever = _get_components()
+
         log_buf = io.StringIO()
         with _capture_stdout(log_buf):
             agent = LangGraphAgent(
                 model_name=model_name,
                 max_retries=int(max_retries),
                 api_key=api_key,
+                fast_model=fast_model,
+                lean_env=lean_env,
+                retriever=retriever,
             )
             result = agent.solve_file_detailed(tmp_path)
 

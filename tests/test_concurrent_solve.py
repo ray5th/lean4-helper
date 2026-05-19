@@ -100,6 +100,12 @@ class ConcurrentSolveTests(unittest.TestCase):
         self._lg_patcher = mock.patch.object(app, "LangGraphAgent", _DummyAgent)
         self._lg_patcher.start()
         self.addCleanup(self._lg_patcher.stop)
+        # Don't construct a real LeanEnvironment / FAISS retriever in tests.
+        self._components_patcher = mock.patch.object(
+            app, "_get_components", return_value=(mock.MagicMock(), mock.MagicMock())
+        )
+        self._components_patcher.start()
+        self.addCleanup(self._components_patcher.stop)
         # Snapshot pre-existing tmp .lean files so we ignore unrelated ones.
         self._tmp_before = _scan_tmp_lean()
 
