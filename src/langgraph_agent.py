@@ -1,4 +1,5 @@
 import os
+import re
 from typing import List, TypedDict
 
 from langgraph.graph import END, StateGraph
@@ -29,20 +30,41 @@ class ProofState(TypedDict):
 # ---------------------------------------------------------------------------
 
 def _read_file(path: str) -> str:
-    with open(path, "r") as f:
+    # Lean source uses ∀ ∃ ℕ ↑ etc. Force UTF-8 so non-UTF-8 default locales
+    # (e.g. C/POSIX inside minimal Docker images) don't corrupt or crash on
+    # read.
+    with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
 
 def _write_file(path: str, code: str) -> None:
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write(code)
 
 
+# Match an opening fence tagged `lean` (or `lean4`, `Lean`, etc.) followed by a
+# newline or whitespace — but NOT something like ```leanish that would
+# accidentally consume the "ish" into the code body.
+_LEAN_FENCE_RE = re.compile(r"```\s*lean[0-9]*\s*\n", re.IGNORECASE)
+
+
 def _extract_lean_code(text: str) -> str:
-    if "```lean" in text:
-        return text.split("```lean")[1].split("```")[0].strip()
+    """
+    Extract the Lean code block from an LLM response.
+
+    Handles:
+      - ```lean\n...\n```         (canonical)
+      - ```lean4\n...\n```        (some LLMs)
+      - ```Lean\n...\n```         (case variation)
+      - ```\n...\n```             (no language tag)
+      - plain text without fences (returned as-is)
+    """
+    m = _LEAN_FENCE_RE.search(text)
+    if m:
+        rest = text[m.end():]
+        return rest.split("```", 1)[0].strip()
     if "```" in text:
-        return text.split("```")[1].split("```")[0].strip()
+        return text.split("```", 1)[1].split("```", 1)[0].strip()
     return text.strip()
 
 
@@ -57,13 +79,17 @@ def _sanitize_imports(code: str) -> str:
     return "import Mathlib\n\n" + "\n".join(non_import_lines).lstrip()
 
 
-_THEOREM_KEYWORDS = ("example", "theorem ", "lemma ", "def ")
+# A declaration keyword must be followed by whitespace or end-of-line so that
+# `examplelike` (false positive) doesn't match and `theorem\n` (no trailing
+# space) does match. `theorem:` and `theorem(` are not valid Lean syntax
+# (the declaration name must come first), so we don't allow those either.
+_THEOREM_KEYWORD_RE = re.compile(r"^\s*(?:example|theorem|lemma|def)(?:\s|$)")
 
 
 def _count_theorem_blocks(code: str) -> int:
     return sum(
         1 for line in code.splitlines()
-        if any(line.strip().startswith(kw) for kw in _THEOREM_KEYWORDS)
+        if _THEOREM_KEYWORD_RE.match(line)
     )
 
 
