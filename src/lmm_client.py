@@ -1,14 +1,15 @@
-import ollama
-from typing import List, Dict, Any, Optional
+from groq import Groq
+from typing import List, Optional
+
 
 class LMMClient:
     """
-    Client for interacting with local LMMs via Ollama.
-    Focuses on Qwen3-VL:4B for high-reasoning tasks.
+    Client for interacting with LLMs via Groq API.
     """
-    
-    def __init__(self, model_name: str = "qwen3-vl:4b"):
+
+    def __init__(self, model_name: str = "llama-3.3-70b-versatile"):
         self.model_name = model_name
+        self._client = Groq()
 
     def chat(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         """
@@ -16,15 +17,28 @@ class LMMClient:
         """
         messages = []
         if system_prompt:
-            messages.append({'role': 'system', 'content': system_prompt})
-        
-        messages.append({'role': 'user', 'content': prompt})
-        
-        response = ollama.chat(
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        response = self._client.chat.completions.create(
             model=self.model_name,
-            messages=messages
+            messages=messages,
+            max_tokens=1024,
         )
-        return response['message']['content']
+
+        # Guard against empty/missing choices from the Groq API.
+        # Previously this crashed with IndexError on `response.choices[0]`,
+        # which surfaces to callers as an opaque traceback instead of a
+        # useful message. Return an empty string so upstream code can
+        # treat it as "no suggestion" without blowing up the run.
+        choices = getattr(response, "choices", None) or []
+        if not choices:
+            return ""
+        message = getattr(choices[0], "message", None)
+        if message is None:
+            return ""
+        content = getattr(message, "content", None)
+        return content if content is not None else ""
 
     def generate_proof_steps(self, lean_code: str, goals: List[str], errors: List[str]) -> str:
         """
@@ -36,7 +50,6 @@ class LMMClient:
             "Use Mathlib theorems where appropriate. "
             "Respond ONLY with the corrected Lean code block."
         )
-        
         prompt = f"""
 Current Lean Code:
 ```lean
