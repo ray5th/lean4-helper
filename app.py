@@ -198,8 +198,13 @@ def solve_proof(lean_code: str, model_name: str, max_retries: int):
     if not os.environ.get("GROQ_API_KEY"):
         return _status_html("err", "GROQ_API_KEY missing — add it as a Space secret"), "", ""
 
-    tmp = tempfile.NamedTemporaryFile(suffix=".lean", mode="w", delete=False, dir="/tmp")
+    tmp = None
     try:
+        # Use UTF-8 explicitly so unicode-heavy Lean code (∀, ℕ, etc.) round-trips
+        # on platforms where the default locale encoding is not UTF-8 (e.g. Windows).
+        tmp = tempfile.NamedTemporaryFile(
+            suffix=".lean", mode="w", delete=False, encoding="utf-8"
+        )
         tmp.write(lean_code)
         tmp.close()
 
@@ -208,7 +213,7 @@ def solve_proof(lean_code: str, model_name: str, max_retries: int):
             agent = LangGraphAgent(model_name=model_name, max_retries=int(max_retries))
             result = agent.solve_file_detailed(tmp.name)
 
-        with open(tmp.name) as f:
+        with open(tmp.name, encoding="utf-8") as f:
             final_code = f.read()
 
         logs = log_buf.getvalue()
@@ -223,7 +228,13 @@ def solve_proof(lean_code: str, model_name: str, max_retries: int):
     except Exception as exc:
         return _status_html("err", f"✗ Error: {exc}"), "", ""
     finally:
-        os.unlink(tmp.name)
+        # Tolerate cases where tmp creation itself raised (tmp is None) or where
+        # the file was already removed by something else.
+        if tmp is not None:
+            try:
+                os.unlink(tmp.name)
+            except FileNotFoundError:
+                pass
 
 
 def _status_html(pill: str, message: str) -> str:
