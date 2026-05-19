@@ -1,4 +1,5 @@
 import os
+import re
 from typing import List, TypedDict
 
 from langgraph.graph import END, StateGraph
@@ -57,13 +58,20 @@ def _sanitize_imports(code: str) -> str:
     return "import Mathlib\n\n" + "\n".join(non_import_lines).lstrip()
 
 
-_THEOREM_KEYWORDS = ("example", "theorem ", "lemma ", "def ")
+_THEOREM_KEYWORDS = ("example", "theorem", "lemma", "def")
+
+# Matches a Lean declaration keyword at the start of a (possibly indented) line,
+# where the keyword is followed by whitespace, end-of-line, or a `:` / `(` token
+# (so `theorem`, `example :`, etc. count, but `theoremlike` / `examplefoo` don't).
+_THEOREM_LINE_RE = re.compile(
+    r"^\s*(?:" + "|".join(_THEOREM_KEYWORDS) + r")(?:\s|[:(]|$)"
+)
 
 
 def _count_theorem_blocks(code: str) -> int:
     return sum(
         1 for line in code.splitlines()
-        if any(line.strip().startswith(kw) for kw in _THEOREM_KEYWORDS)
+        if _THEOREM_LINE_RE.match(line)
     )
 
 
