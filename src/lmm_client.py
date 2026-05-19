@@ -22,7 +22,14 @@ class LMMClient:
             messages=messages,
             max_tokens=1024,
         )
-        return response.choices[0].message.content
+        # Defensive: Groq can return empty `choices` on content filter / quota
+        # issues — accessing [0] would IndexError and kill the agent.
+        choices = getattr(response, "choices", None) or []
+        if not choices:
+            return ""
+        message = getattr(choices[0], "message", None)
+        content = getattr(message, "content", None) if message else None
+        return content or ""
 
     def generate_proof_steps(self, lean_code: str, goals: List[str], errors: List[str]) -> str:
         system_prompt = (

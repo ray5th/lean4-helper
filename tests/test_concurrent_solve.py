@@ -93,6 +93,13 @@ class ConcurrentSolveTests(unittest.TestCase):
         _DummyAgent.sleep_seconds = 0.0
         _DummyAgent.raise_token = None
         _DummyAgent.print_tag = False
+        # Per-test patch: `app.solve_proof` does `from langgraph_agent import
+        # LangGraphAgent` at import time, so `app.LangGraphAgent` is bound to
+        # whichever module-level mock loaded first. Other test files do the
+        # same trick and can win the race, so we patch on `app` directly.
+        self._lg_patcher = mock.patch.object(app, "LangGraphAgent", _DummyAgent)
+        self._lg_patcher.start()
+        self.addCleanup(self._lg_patcher.stop)
         # Snapshot pre-existing tmp .lean files so we ignore unrelated ones.
         self._tmp_before = _scan_tmp_lean()
 
