@@ -93,6 +93,28 @@ def load_minif2f(split: str = "valid", max_problems: int | None = None):
     )
 
 
+def load_local_problems(problems_dir: str, max_problems: int | None = None):
+    """Load `.lean` files from a directory as a list of {name, lean_code} dicts."""
+    root = Path(problems_dir)
+    if not root.is_dir():
+        raise RuntimeError(f"Problems directory not found: {problems_dir}")
+
+    files = sorted(root.glob("*.lean"))
+    if max_problems:
+        files = files[:max_problems]
+
+    rows = []
+    for path in files:
+        code = path.read_text(encoding="utf-8")
+        if "sorry" not in code:
+            # Skip files that are already complete proofs.
+            continue
+        rows.append({"name": path.stem, "lean_code": code})
+
+    print(f"Loaded {len(rows)} local problem(s) with sorry placeholders.")
+    return rows
+
+
 # ---------------------------------------------------------------------------
 # pass@k estimator
 # ---------------------------------------------------------------------------
@@ -197,22 +219,29 @@ def main():
     )
     parser.add_argument("--split",   default="valid",        help="Dataset split: valid (=validation) | test")
     parser.add_argument("--subset",  type=int, default=None, help="Use only first N problems")
-    parser.add_argument("--model",   default="gemma3:12b",   help="Ollama model or Claude model ID")
+    parser.add_argument("--model",   default="llama-3.3-70b-versatile", help="Groq / Claude model ID")
     parser.add_argument("--retries", type=int, default=5,    help="Max LLM attempts per problem")
     parser.add_argument("--no-rag",  action="store_true",    help="Disable RAG retrieval (ablation)")
     parser.add_argument("--index-dir", default=None,         help="Path to pre-built FAISS index")
     parser.add_argument("--output",  default="benchmark_results.csv", help="CSV output path")
     parser.add_argument("--verbose", action="store_true",    help="Print per-problem results")
+    parser.add_argument("--api-key", default=None,           help="API key for the chosen provider (Anthropic for Claude models). Falls back to ANTHROPIC_API_KEY / GROQ_API_KEY env.")
+    parser.add_argument("--problems-dir", default=None,      help="Use local .lean files in this directory instead of MiniF2F. Each file is one problem.")
     args = parser.parse_args()
 
-    print(f"Loading MiniF2F ({args.split} split)…")
-    problems = load_minif2f(split=args.split, max_problems=args.subset)
+    if args.problems_dir:
+        print(f"Loading local problems from {args.problems_dir}…")
+        problems = load_local_problems(args.problems_dir, max_problems=args.subset)
+    else:
+        print(f"Loading MiniF2F ({args.split} split)…")
+        problems = load_minif2f(split=args.split, max_problems=args.subset)
 
     print(f"Initialising agent (model={args.model}, retries={args.retries})…")
     agent = LangGraphAgent(
         model_name=args.model,
         max_retries=args.retries,
         index_dir=args.index_dir,
+        api_key=args.api_key,
     )
 
     if args.no_rag:
