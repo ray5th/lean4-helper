@@ -60,6 +60,11 @@ class MathLibRetriever:
 
         self._retriever = self._build_retriever(faiss_store, docs)
 
+    # Hard cap on query length passed to downstream retrievers. Long queries
+    # waste embedding work and can blow past tokenizer limits; truncating here
+    # gives callers a predictable upper bound.
+    _MAX_QUERY_CHARS = 2000
+
     def retrieve(self, query: str, k: Optional[int] = None) -> List[Document]:
         """
         Retrieve and rerank the most relevant Mathlib lemmas for a query.
@@ -70,7 +75,26 @@ class MathLibRetriever:
 
         Returns:
             List of Documents ranked by relevance.
+
+        Raises:
+            TypeError: If `query` is not a string.
         """
+        if not isinstance(query, str):
+            raise TypeError(
+                f"query must be a str, got {type(query).__name__}"
+            )
+
+        # Empty/whitespace-only queries are valid input but degenerate; bail
+        # out early with no results rather than asking the embedding model to
+        # vectorise an empty string (which produces noisy nearest neighbours).
+        if not query.strip():
+            return []
+
+        # Truncate absurdly long inputs so a runaway caller can't pin the
+        # embedding model.
+        if len(query) > self._MAX_QUERY_CHARS:
+            query = query[: self._MAX_QUERY_CHARS]
+
         if self._retriever is None:
             self._load()
         results = self._retriever.invoke(query)
