@@ -1,10 +1,76 @@
-from typing import List, Optional
+import subprocess
+from typing import Any, Dict, List, Optional
 
 from langchain_core.documents import Document
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain_core.outputs import ChatGeneration, ChatResult
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain_anthropic import ChatAnthropic
+
+
+class ClaudeCliChat(BaseChatModel):
+    """
+    LangChain chat model that shells out to the local `claude -p` CLI.
+
+    Useful when a user wants to run the agent on their Claude Pro subscription
+    (Pro tokens, no API spend) instead of pay-per-call API keys. The model
+    string passed to `claude --model` can be an alias (`opus`, `sonnet`,
+    `haiku`) or a full ID (`claude-opus-4-7`).
+    """
+
+    model: str = "opus"
+    timeout: int = 180
+
+    @property
+    def _llm_type(self) -> str:
+        return "claude-cli"
+
+    @property
+    def _identifying_params(self) -> Dict[str, Any]:
+        return {"model": self.model}
+
+    def _generate(
+        self,
+        messages: List[BaseMessage],
+        stop: Optional[List[str]] = None,
+        run_manager: Any = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        # Flatten the chat into a single prompt because `claude -p` accepts one
+        # string. Tag each segment so the CLI session can see the role split.
+        parts = []
+        for m in messages:
+            if isinstance(m, SystemMessage):
+                parts.append(f"<system>\n{m.content}\n</system>")
+            elif isinstance(m, HumanMessage):
+                parts.append(f"<user>\n{m.content}\n</user>")
+            elif isinstance(m, AIMessage):
+                parts.append(f"<assistant>\n{m.content}\n</assistant>")
+            else:
+                parts.append(str(m.content))
+        prompt = "\n\n".join(parts)
+
+        try:
+            result = subprocess.run(
+                ["claude", "-p", prompt, "--model", self.model],
+                capture_output=True,
+                text=True,
+                timeout=self.timeout,
+            )
+            content = result.stdout.strip()
+            if result.returncode != 0 and not content:
+                content = f"(claude CLI error: {result.stderr.strip()[:200]})"
+        except subprocess.TimeoutExpired:
+            content = "(claude CLI timed out)"
+        except FileNotFoundError:
+            content = "(claude CLI not found on PATH — install Claude Code first)"
+
+        return ChatResult(
+            generations=[ChatGeneration(message=AIMessage(content=content))]
+        )
 
 
 _SYSTEM = """\
@@ -99,9 +165,13 @@ Provide the corrected Lean code that solves all goals and fixes all errors.
 def _make_llm(model_name: str, api_key: Optional[str]):
     """
     Pick the chat LLM provider from the model name:
-      - `claude-*` → Anthropic (requires user-provided api_key)
+      - `claude-cli-*`  → local `claude -p` CLI (uses Pro subscription tokens)
+      - `claude-*`      → Anthropic API (requires user-provided api_key)
       - everything else → Groq (api_key optional; falls back to GROQ_API_KEY env)
     """
+    if model_name.startswith("claude-cli-"):
+        cli_model = model_name[len("claude-cli-"):]
+        return ClaudeCliChat(model=cli_model)
     if model_name.startswith("claude-"):
         kwargs = {"model": model_name, "max_tokens": 512}
         if api_key:
