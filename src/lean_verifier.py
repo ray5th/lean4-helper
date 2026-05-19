@@ -11,7 +11,7 @@ class LeanEnvironment:
     def __init__(self, use_mathlib: bool = True, lean_version: str = "v4.8.0"):
         """
         Initializes the Lean environment.
-        
+
         Args:
             use_mathlib (bool): If True, configures a TempRequireProject with Mathlib.
                                 This may take a while to build on the first run.
@@ -23,7 +23,7 @@ class LeanEnvironment:
         if self.use_mathlib:
             # We use TempRequireProject with mathlib as specified in lean_interact documentation
             project = TempRequireProject(
-                lean_version=self.lean_version, 
+                lean_version=self.lean_version,
                 require="mathlib"
             )
             self.config = LeanREPLConfig(project=project)
@@ -35,31 +35,54 @@ class LeanEnvironment:
     def verify_proof(self, lean_code: str) -> Dict[str, Any]:
         """
         Executes a block of Lean code and verifies if it is a correct proof.
-        
+
         Args:
             lean_code (str): The full Lean 4 code string containing imports, theorem statement, and proof.
-            
+
         Returns:
             dict: A dictionary containing the status, errors (if any), and goals (if open sorries remain).
         """
-        response = self.server.run(Command(cmd=lean_code))
+        # Guard: empty/whitespace-only inputs must not be sent to the server.
+        # The underlying lean_interact Command requires a non-empty cmd string,
+        # and a blank command is never a valid proof anyway -- short-circuit to a
+        # clean failure result.
+        if not isinstance(lean_code, str) or not lean_code.strip():
+            return {
+                "status": "failure",
+                "errors": ["empty Lean code: nothing to verify"],
+                "goals": [],
+                "env": None,
+            }
+
+        # Guard: catch any exception raised by the underlying Lean server (e.g.
+        # connection loss, REPL crash, validation error) and surface it as a
+        # failure result instead of propagating.
+        try:
+            response = self.server.run(Command(cmd=lean_code))
+        except Exception as exc:
+            return {
+                "status": "failure",
+                "errors": [f"Lean server error: {exc}"],
+                "goals": [],
+                "env": None,
+            }
 
         errors = []
         goals = []
-        
+
         # Check for error or warning messages
         if hasattr(response, 'messages') and response.messages:
             for msg in response.messages:
                 if msg.severity in ['error', 'warning']:
                     # E.g., 'declaration uses 'sorry'' is a warning, but we might want to capture it
                     errors.append(msg.data)
-        
+
         # Check for open goals (sorries)
         if hasattr(response, 'sorries') and response.sorries:
             for sorry in response.sorries:
                 if sorry.goal:
                     goals.append(sorry.goal)
-                    
+
         is_success = len(errors) == 0 and len(goals) == 0
 
         return {
