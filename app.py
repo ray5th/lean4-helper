@@ -81,6 +81,18 @@ GROQ_MODELS = [
     "llama-3.1-8b-instant",
 ]
 
+CLAUDE_MODELS = [
+    "claude-opus-4-7",
+    "claude-sonnet-4-6",
+    "claude-haiku-4-5-20251001",
+]
+
+ALL_MODELS = GROQ_MODELS + CLAUDE_MODELS
+
+
+def _is_claude(model_name: str) -> bool:
+    return model_name.startswith("claude-")
+
 EXAMPLE_CODE = """\
 import Mathlib
 
@@ -336,12 +348,19 @@ input[type="range"] { accent-color: var(--accent) !important; }
 """
 
 
-def solve_proof(lean_code: str, model_name: str, max_retries: int):
+def solve_proof(lean_code: str, model_name: str, max_retries: int, anthropic_api_key: str = ""):
     if not lean_code.strip():
         return _status_html("idle", "No input — paste a Lean 4 theorem on the left."), "", ""
 
-    if not os.environ.get("GROQ_API_KEY"):
-        return _status_html("err", "GROQ_API_KEY missing — add it as a Space secret."), "", ""
+    claude = _is_claude(model_name)
+    if claude:
+        if not anthropic_api_key or not anthropic_api_key.strip():
+            return _status_html("err", "Anthropic API key required for Claude models — paste it above."), "", ""
+        api_key = anthropic_api_key.strip()
+    else:
+        if not os.environ.get("GROQ_API_KEY"):
+            return _status_html("err", "GROQ_API_KEY missing — add it as a Space secret."), "", ""
+        api_key = None  # ChatGroq picks it up from env
 
     tmp_path = None
     try:
@@ -354,7 +373,11 @@ def solve_proof(lean_code: str, model_name: str, max_retries: int):
 
         log_buf = io.StringIO()
         with _capture_stdout(log_buf):
-            agent = LangGraphAgent(model_name=model_name, max_retries=int(max_retries))
+            agent = LangGraphAgent(
+                model_name=model_name,
+                max_retries=int(max_retries),
+                api_key=api_key,
+            )
             result = agent.solve_file_detailed(tmp_path)
 
         with open(tmp_path, encoding="utf-8") as f:
@@ -415,12 +438,20 @@ with gr.Blocks(
     # ─── Controls bar ───────────────────────────────────────────────
     with gr.Row(elem_id="controls"):
         model_dropdown = gr.Dropdown(
-            choices=GROQ_MODELS, value=GROQ_MODELS[0],
+            choices=ALL_MODELS, value=GROQ_MODELS[0],
             label="Model", show_label=True, container=False, scale=2,
         )
         retries_slider = gr.Slider(
             minimum=1, maximum=10, value=5, step=1,
             label="Max retries", show_label=True, container=False, scale=1,
+        )
+        anthropic_key_input = gr.Textbox(
+            label="Anthropic API key (only for Claude models)",
+            placeholder="sk-ant-…",
+            type="password",
+            show_label=True,
+            container=False,
+            scale=2,
         )
 
     # ─── Two editor panes ───────────────────────────────────────────
@@ -462,12 +493,12 @@ with gr.Blocks(
     # ─── Wiring ─────────────────────────────────────────────────────
     solve_btn.click(
         solve_proof,
-        inputs=[lean_input, model_dropdown, retries_slider],
+        inputs=[lean_input, model_dropdown, retries_slider, anthropic_key_input],
         outputs=[status_output, code_output, logs_output],
     )
     regen_btn.click(
         solve_proof,
-        inputs=[lean_input, model_dropdown, retries_slider],
+        inputs=[lean_input, model_dropdown, retries_slider, anthropic_key_input],
         outputs=[status_output, code_output, logs_output],
     )
     reset_btn.click(lambda: EXAMPLE_CODE, outputs=lean_input)

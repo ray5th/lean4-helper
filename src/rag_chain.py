@@ -1,9 +1,10 @@
-from typing import List
+from typing import List, Optional
 
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
+from langchain_anthropic import ChatAnthropic
 
 
 _SYSTEM = """\
@@ -95,6 +96,23 @@ Provide the corrected Lean code that solves all goals and fixes all errors.
 """
 
 
+def _make_llm(model_name: str, api_key: Optional[str]):
+    """
+    Pick the chat LLM provider from the model name:
+      - `claude-*` → Anthropic (requires user-provided api_key)
+      - everything else → Groq (api_key optional; falls back to GROQ_API_KEY env)
+    """
+    if model_name.startswith("claude-"):
+        kwargs = {"model": model_name, "max_tokens": 1024}
+        if api_key:
+            kwargs["anthropic_api_key"] = api_key
+        return ChatAnthropic(**kwargs)
+    kwargs = {"model": model_name, "max_tokens": 1024}
+    if api_key:
+        kwargs["groq_api_key"] = api_key
+    return ChatGroq(**kwargs)
+
+
 def _format_docs(docs: List[Document]) -> str:
     if not docs:
         return "(none retrieved)"
@@ -108,12 +126,12 @@ class RAGProofChain:
     LangChain LCEL chain: retrieved context + proof state → corrected Lean code.
     """
 
-    def __init__(self, model_name: str = "llama-3.3-70b-versatile"):
+    def __init__(self, model_name: str = "llama-3.3-70b-versatile", api_key: Optional[str] = None):
         prompt = ChatPromptTemplate.from_messages([
             ("system", _SYSTEM),
             ("human", _HUMAN),
         ])
-        llm = ChatGroq(model=model_name, max_tokens=1024)
+        llm = _make_llm(model_name, api_key)
         self._chain = prompt | llm | StrOutputParser()
 
     def generate(

@@ -3,6 +3,7 @@ groq
 langchain
 langchain-community
 langchain-groq
+langchain-anthropic
 langchain-huggingface
 langchain-classic
 langgraph

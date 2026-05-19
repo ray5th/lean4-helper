@@ -212,10 +212,11 @@ class LangGraphAgent:
         model_name: str = "llama-3.3-70b-versatile",
         max_retries: int = 5,
         index_dir: str | None = None,
+        api_key: str | None = None,
     ):
         self._lean_env = LeanEnvironment(use_mathlib=True)
         self._retriever = MathLibRetriever(index_dir=index_dir)
-        self._chain = RAGProofChain(model_name=model_name)
+        self._chain = RAGProofChain(model_name=model_name, api_key=api_key)
         self._graph = build_graph(self._lean_env, self._retriever, self._chain)
         self._max_retries = max_retries
 
