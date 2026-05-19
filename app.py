@@ -281,7 +281,17 @@ def solve_proof(lean_code: str, model_name: str, max_retries: int):
 
     tmp_path = None
     try:
-        tmp = tempfile.NamedTemporaryFile(suffix=".lean", mode="w", delete=False, dir="/tmp")
+        # Lean source frequently contains unicode (∀ ℕ ∃ ↑ etc.). On platforms
+        # where the preferred encoding is not UTF-8 (e.g. POSIX/C locale),
+        # opening text mode without an explicit encoding can blow up with
+        # UnicodeEncodeError / UnicodeDecodeError. Force UTF-8 on both ends.
+        tmp = tempfile.NamedTemporaryFile(
+            suffix=".lean",
+            mode="w",
+            delete=False,
+            dir="/tmp",
+            encoding="utf-8",
+        )
         tmp_path = tmp.name
         tmp.write(lean_code)
         tmp.close()
@@ -293,7 +303,7 @@ def solve_proof(lean_code: str, model_name: str, max_retries: int):
             agent = LangGraphAgent(model_name=model_name, max_retries=int(max_retries))
             result = agent.solve_file_detailed(tmp_path)
 
-        with open(tmp_path) as f:
+        with open(tmp_path, encoding="utf-8") as f:
             final_code = f.read()
 
         logs = log_buf.getvalue()

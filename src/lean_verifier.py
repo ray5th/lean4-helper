@@ -35,14 +35,34 @@ class LeanEnvironment:
     def verify_proof(self, lean_code: str) -> Dict[str, Any]:
         """
         Executes a block of Lean code and verifies if it is a correct proof.
-        
+
         Args:
             lean_code (str): The full Lean 4 code string containing imports, theorem statement, and proof.
-            
+
         Returns:
             dict: A dictionary containing the status, errors (if any), and goals (if open sorries remain).
         """
-        response = self.server.run(Command(cmd=lean_code))
+        # Guard: empty/whitespace input would crash `Command(cmd=...)` with a
+        # pydantic ValidationError (min_length=1). Return a clean failure.
+        if not lean_code or not lean_code.strip():
+            return {
+                "status": "failure",
+                "errors": ["empty Lean code: nothing to verify"],
+                "goals": [],
+                "env": None,
+            }
+
+        # Guard: LeanServer can raise on disconnect / crash / OOM. Surface as a
+        # failure result so the agent's retry loop continues instead of dying.
+        try:
+            response = self.server.run(Command(cmd=lean_code))
+        except Exception as exc:
+            return {
+                "status": "failure",
+                "errors": [f"Lean server error: {exc}"],
+                "goals": [],
+                "env": None,
+            }
 
         errors = []
         goals = []
