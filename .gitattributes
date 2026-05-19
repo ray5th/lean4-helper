@@ -1,0 +1,2 @@
+data/mathlib_index/index.faiss filter=lfs diff=lfs merge=lfs -text
+data/mathlib_index/index.pkl filter=lfs diff=lfs merge=lfs -text
