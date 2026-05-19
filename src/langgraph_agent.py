@@ -113,7 +113,14 @@ def make_generate_node(chain: RAGProofChain):
             errors=state["errors"],
             retrieved_lemmas=state["retrieved_lemmas"],
         )
-        new_code = _sanitize_imports(_extract_lean_code(raw))
+        extracted = _extract_lean_code(raw)
+        # Detect empty/whitespace-only LLM output *before* sanitization, since
+        # _sanitize_imports unconditionally prepends "import Mathlib" and would
+        # otherwise mask an empty response as a non-empty payload.
+        if not extracted or not extracted.strip():
+            print("LLM produced no usable output.")
+            return {**state, "attempt": state["attempt"] + 1, "status": "failed"}
+        new_code = _sanitize_imports(extracted)
 
         if not new_code or new_code.strip() == state["lean_code"].strip():
             print("LLM produced no changes.")
