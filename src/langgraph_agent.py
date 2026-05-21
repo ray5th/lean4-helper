@@ -3,6 +3,7 @@ import re
 from typing import List, TypedDict
 
 from langgraph.graph import END, StateGraph
+
 from lean_verifier import LeanEnvironment
 from rag_chain import RAGProofChain
 from retriever import MathLibRetriever

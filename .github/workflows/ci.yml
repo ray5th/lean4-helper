@@ -16,7 +16,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install ruff
-        run: pip install ruff
+        # Pinned so CI and local runs use the same rule set (ruff's import
+        # sorting changes between releases).
+        run: pip install ruff==0.15.14
       - name: ruff check
         run: ruff check .
 
