@@ -1,7 +1,7 @@
 import threading
-from typing import Dict, Any, List
+from typing import Any, Dict
 
-from lean_interact import LeanREPLConfig, LeanServer, Command, TempRequireProject, LeanRequire
+from lean_interact import Command, LeanREPLConfig, LeanServer, TempRequireProject
 
 
 class LeanEnvironment:
@@ -16,7 +16,7 @@ class LeanEnvironment:
     def __init__(self, use_mathlib: bool = True, lean_version: str = "v4.8.0"):
         """
         Initializes the Lean environment.
-        
+
         Args:
             use_mathlib (bool): If True, configures a TempRequireProject with Mathlib.
                                 This may take a while to build on the first run.
@@ -28,7 +28,7 @@ class LeanEnvironment:
         if self.use_mathlib:
             # We use TempRequireProject with mathlib as specified in lean_interact documentation
             project = TempRequireProject(
-                lean_version=self.lean_version, 
+                lean_version=self.lean_version,
                 require="mathlib"
             )
             self.config = LeanREPLConfig(project=project)
@@ -74,20 +74,20 @@ class LeanEnvironment:
 
         errors = []
         goals = []
-        
+
         # Check for error or warning messages
         if hasattr(response, 'messages') and response.messages:
             for msg in response.messages:
                 if msg.severity in ['error', 'warning']:
                     # E.g., 'declaration uses 'sorry'' is a warning, but we might want to capture it
                     errors.append(msg.data)
-        
+
         # Check for open goals (sorries)
         if hasattr(response, 'sorries') and response.sorries:
             for sorry in response.sorries:
                 if sorry.goal:
                     goals.append(sorry.goal)
-                    
+
         is_success = len(errors) == 0 and len(goals) == 0
 
         return {

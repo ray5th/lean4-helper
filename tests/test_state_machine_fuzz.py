@@ -7,8 +7,8 @@ Covers:
 - make_verify_node(lean_env): behavior with mocked verifier.
 """
 
-import sys
 import os
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -16,13 +16,12 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 sys.path.insert(0, 'src')
 
-from langgraph.graph import END
-
 import langgraph_agent
+from langgraph.graph import END
 from langgraph_agent import (
-    should_continue,
     make_generate_node,
     make_verify_node,
+    should_continue,
 )
 
 

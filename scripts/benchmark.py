@@ -225,8 +225,12 @@ def main():
     parser.add_argument("--index-dir", default=None,         help="Path to pre-built FAISS index")
     parser.add_argument("--output",  default="benchmark_results.csv", help="CSV output path")
     parser.add_argument("--verbose", action="store_true",    help="Print per-problem results")
-    parser.add_argument("--api-key", default=None,           help="API key for the chosen provider (Anthropic for Claude models). Falls back to ANTHROPIC_API_KEY / GROQ_API_KEY env.")
-    parser.add_argument("--problems-dir", default=None,      help="Use local .lean files in this directory instead of MiniF2F. Each file is one problem.")
+    parser.add_argument("--api-key", default=None,
+                        help="API key for the chosen provider (Anthropic for Claude models). "
+                             "Falls back to ANTHROPIC_API_KEY / GROQ_API_KEY env.")
+    parser.add_argument("--problems-dir", default=None,
+                        help="Use local .lean files in this directory instead of MiniF2F. "
+                             "Each file is one problem.")
     args = parser.parse_args()
 
     if args.problems_dir:

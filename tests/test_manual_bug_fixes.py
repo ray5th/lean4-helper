@@ -27,6 +27,7 @@ for _mod in ("lean_verifier", "retriever", "rag_chain"):
     sys.modules[_mod] = mock.MagicMock()
 
 import langgraph_agent
+
 importlib.reload(langgraph_agent)  # ensure regex/keyword changes are picked up
 _count_theorem_blocks = langgraph_agent._count_theorem_blocks
 _extract_lean_code = langgraph_agent._extract_lean_code
@@ -71,7 +72,7 @@ class TestCountTheoremBlocksKeywordFix(unittest.TestCase):
 
 
 class TestExtractLeanCodeFenceVariants(unittest.TestCase):
-    """
+    r"""
     `_extract_lean_code` used to do `text.split("```lean")[1]` which would
     leave a `4` at the start when the fence was `\`\`\`lean4` (a common LLM
     output). Now uses a regex that requires the lean tag to be terminated by
@@ -142,6 +143,7 @@ class TestProofAgentDefaultModel(unittest.TestCase):
         # Inspect the function default directly — avoids needing a working
         # LangGraphAgent mock chain.
         import inspect
+
         import proof_agent
 
         sig = inspect.signature(proof_agent.ProofAgent.__init__)

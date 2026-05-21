@@ -1,0 +1,19 @@
+# Ruff configuration for lean4-helper.
+line-length = 120
+
+# Untracked / generated dirs that shouldn't be linted.
+exclude = [
+    "web",
+    ".claude",
+    "__pycache__",
+    "data",
+]
+
+[lint]
+# Default rule set (pyflakes F + pycodestyle E/W) plus import sorting.
+select = ["E", "F", "W", "I"]
+
+# E402 (module import not at top of file) is intentional throughout: test
+# files and scripts run `sys.path.insert(0, "src")` before importing local
+# modules. E741 (ambiguous name `l`) is a cosmetic nit we accept.
+ignore = ["E402", "E741"]

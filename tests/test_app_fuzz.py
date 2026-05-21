@@ -13,7 +13,6 @@ We mock `langgraph_agent.LangGraphAgent` BEFORE importing `app` so no Lean,
 LLM, or FAISS infrastructure is needed.
 """
 
-import io
 import os
 import sys
 import tempfile
@@ -67,12 +66,23 @@ class _DummyAgent:
 
 
 _fake_lg_module.LangGraphAgent = _DummyAgent
-sys.modules["langgraph_agent"] = _fake_lg_module
 
 # Default to having a key set; individual tests override this.
 os.environ.setdefault("GROQ_API_KEY", "test-key")
 
+# Mock langgraph_agent only for the duration of importing `app`, then restore
+# sys.modules so this file doesn't poison the import for other test files.
+# app.py captures its own `LangGraphAgent` reference at import time; tests
+# patch `app.LangGraphAgent` directly afterward.
+_orig_langgraph_agent = sys.modules.get("langgraph_agent")
+sys.modules["langgraph_agent"] = _fake_lg_module
 import app  # noqa: E402   (must come after the mock above)
+
+if _orig_langgraph_agent is not None:
+    sys.modules["langgraph_agent"] = _orig_langgraph_agent
+else:
+    del sys.modules["langgraph_agent"]
+app.LangGraphAgent = _DummyAgent  # keep app bound to the dummy after restore
 
 
 # Sentinels for the fuzz corpus -----------------------------------------------

@@ -1,5 +1,6 @@
-from groq import Groq
 from typing import List, Optional
+
+from groq import Groq
 
 
 class LMMClient:

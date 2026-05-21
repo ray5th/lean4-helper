@@ -104,7 +104,11 @@ _patchers = [
 for p in _patchers:
     p.start()
 
-# Now safe to import the module under test.
+# Force a fresh import: another test file in the same run may have already
+# imported the real `retriever` (e.g. via `app`), which would shadow our
+# mocked dependencies. Dropping it from sys.modules makes the import below
+# re-run with the patchers active.
+sys.modules.pop("retriever", None)
 import retriever  # noqa: E402
 
 # Re-bind the locally imported names inside `retriever` to our fakes, because
@@ -181,13 +185,14 @@ class RetrieveQueryFuzzTests(unittest.TestCase):
 
 
 class RetrieveLazyLoadTests(unittest.TestCase):
-    """`retrieve()` should lazily call `_load()` when no retriever exists."""
+    """`retrieve()` should degrade gracefully when no index is present."""
 
-    def test_retrieve_without_built_index_raises_runtime_error(self):
+    def test_retrieve_without_built_index_returns_empty(self):
+        # The retriever skips RAG (returns []) rather than raising when no
+        # FAISS index exists, so the agent can still run LLM-only.
         with tempfile.TemporaryDirectory() as tmp:
             r = retriever.MathLibRetriever(index_dir=tmp)
-            with self.assertRaises(RuntimeError):
-                r.retrieve("query")
+            self.assertEqual(r.retrieve("query"), [])
 
 
 class InitFuzzTests(unittest.TestCase):

@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Claude Code
+.claude/
+
+# Benchmark run artifacts
+benchmark_*.csv
+benchmark_results.csv
+
+# OS
+.DS_Store

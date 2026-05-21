@@ -10,9 +10,9 @@ Optional flags:
     --max-files N         Limit to first N .lean files (useful for quick testing)
     --index-dir PATH      Where to save the index (default: data/mathlib_index)
 """
-import sys
-import os
 import argparse
+import os
+import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 

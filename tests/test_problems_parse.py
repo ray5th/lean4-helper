@@ -9,7 +9,6 @@ No Lean install required - these tests only exercise text-level helpers:
     - _extract_lean_code (idempotent on raw .lean files with no fences)
 """
 
-import os
 import sys
 import unittest
 from pathlib import Path

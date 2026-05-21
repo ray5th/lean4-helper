@@ -1,11 +1,10 @@
+import glob
 import os
 import re
-import glob
 from pathlib import Path
 from typing import List, Optional
 
 from langchain_core.documents import Document
-
 
 # Regex to capture optional docstring + declaration line
 _DECL_PATTERN = re.compile(

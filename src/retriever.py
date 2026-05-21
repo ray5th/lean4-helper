@@ -1,15 +1,13 @@
-import os
 from pathlib import Path
 from typing import List, Optional
 
+from langchain_classic.retrievers import ContextualCompressionRetriever, EnsembleRetriever
+from langchain_classic.retrievers.document_compressors import CrossEncoderReranker
+from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from langchain_community.retrievers import BM25Retriever
 from langchain_community.vectorstores import FAISS
-from langchain_community.cross_encoders import HuggingFaceCrossEncoder
-from langchain_classic.retrievers import EnsembleRetriever, ContextualCompressionRetriever
-from langchain_classic.retrievers.document_compressors import CrossEncoderReranker
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
-
+from langchain_huggingface import HuggingFaceEmbeddings
 from mathlib_corpus import MathLibCorpus
 
 _DEFAULT_INDEX_DIR = Path(__file__).resolve().parent.parent / "data" / "mathlib_index"

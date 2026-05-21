@@ -12,7 +12,6 @@ from langgraph_agent import LangGraphAgent
 from lean_verifier import LeanEnvironment
 from retriever import MathLibRetriever
 
-
 # ---------------------------------------------------------------------------
 # Cached heavyweight components.
 #

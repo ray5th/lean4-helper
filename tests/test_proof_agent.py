@@ -1,30 +1,38 @@
-import unittest
-import sys
 import os
-from unittest.mock import patch, MagicMock
+import sys
+import unittest
+from unittest.mock import MagicMock, patch
 
 # Add src to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
-# Mock langgraph_agent.LangGraphAgent before importing proof_agent
+# Mock langgraph_agent.LangGraphAgent before importing proof_agent (so its
+# top-level `from langgraph_agent import LangGraphAgent` doesn't pull in the
+# heavy real module). Restore sys.modules afterward so this file doesn't
+# poison the langgraph_agent import for other test files in the same run.
+_orig_langgraph_agent = sys.modules.get('langgraph_agent')
 sys.modules['langgraph_agent'] = MagicMock()
 
-import proof_agent
 from proof_agent import ProofAgent
+
+if _orig_langgraph_agent is not None:
+    sys.modules['langgraph_agent'] = _orig_langgraph_agent
+else:
+    del sys.modules['langgraph_agent']
 
 
 class TestProofAgentConstructor(unittest.TestCase):
     def test_default_args_constructs_langgraph_agent_with_defaults(self):
         with patch('proof_agent.LangGraphAgent') as MockLangGraphAgent:
-            agent = ProofAgent()
+            ProofAgent()
             MockLangGraphAgent.assert_called_once_with(
-                model_name="qwen3-vl:4b",
+                model_name="llama-3.3-70b-versatile",
                 max_retries=5,
             )
 
     def test_custom_model_name_forwarded(self):
         with patch('proof_agent.LangGraphAgent') as MockLangGraphAgent:
-            agent = ProofAgent(model_name="custom-model:7b")
+            ProofAgent(model_name="custom-model:7b")
             MockLangGraphAgent.assert_called_once_with(
                 model_name="custom-model:7b",
                 max_retries=5,
@@ -32,15 +40,15 @@ class TestProofAgentConstructor(unittest.TestCase):
 
     def test_custom_max_retries_forwarded(self):
         with patch('proof_agent.LangGraphAgent') as MockLangGraphAgent:
-            agent = ProofAgent(max_retries=10)
+            ProofAgent(max_retries=10)
             MockLangGraphAgent.assert_called_once_with(
-                model_name="qwen3-vl:4b",
+                model_name="llama-3.3-70b-versatile",
                 max_retries=10,
             )
 
     def test_all_custom_args_forwarded(self):
         with patch('proof_agent.LangGraphAgent') as MockLangGraphAgent:
-            agent = ProofAgent(model_name="other-model:13b", max_retries=3)
+            ProofAgent(model_name="other-model:13b", max_retries=3)
             MockLangGraphAgent.assert_called_once_with(
                 model_name="other-model:13b",
                 max_retries=3,
