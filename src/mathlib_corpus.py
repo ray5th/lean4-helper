@@ -79,7 +79,10 @@ def _parse_lean_file(path: str) -> List[Document]:
         if docstring:
             content = f"{docstring}\n{content}"
 
-        line = text[: match.start()].count("\n") + 1
+        # Use the position of the declaration keyword (group 2) rather than
+        # `match.start()`, which is inflated by leading whitespace consumed by
+        # the optional docstring/attribute prefix.
+        line = text[: match.start(2)].count("\n") + 1
         docs.append(Document(
             page_content=content,
             metadata={"kind": kind, "name": name, "file": path, "line": line},
