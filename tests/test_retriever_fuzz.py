@@ -76,6 +76,15 @@ class _FakeFAISS:
     def as_retriever(self, search_kwargs=None):  # noqa: ARG002
         return _FakeBaseRetriever()
 
+    def similarity_search(self, query, k=5):  # noqa: ARG002
+        # New direct-FAISS retrieval path (post-LeanDojo refactor).
+        return list(_FAKE_DOCS)[:k]
+
+    # Real FAISS exposes `.index` so the retriever can tune `nprobe`. A bare
+    # object that doesn't have an `nprobe` attribute will trigger our
+    # try/except AttributeError fallback cleanly.
+    index = object()
+
 
 class _FakeBaseRetriever:
     def invoke(self, query):  # noqa: ARG002

@@ -1,27 +1,31 @@
 from pathlib import Path
 from typing import List, Optional
 
-from langchain_classic.retrievers import ContextualCompressionRetriever, EnsembleRetriever
-from langchain_classic.retrievers.document_compressors import CrossEncoderReranker
-from langchain_community.cross_encoders import HuggingFaceCrossEncoder
-from langchain_community.retrievers import BM25Retriever
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
-from langchain_huggingface import HuggingFaceEmbeddings
 
+from byt5_embedder import ByT5PremiseEmbedder
 from mathlib_corpus import MathLibCorpus
 
 _DEFAULT_INDEX_DIR = Path(__file__).resolve().parent.parent / "data" / "mathlib_index"
-_EMBED_MODEL = "all-MiniLM-L6-v2"
-_RERANK_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+# Query-time embedder. Lean-aware ByT5 encoder from LeanDojo, trained on
+# (proof_state, used_premise) pairs from Mathlib. The Mathlib FAISS index is
+# built from LeanDojo's pre-computed embeddings via
+# `scripts/build_leandojo_index.py`.
+#
+# History: we previously hybrid-ensembled this with BM25 and reranked with a
+# generic `ms-marco-MiniLM-L-6-v2` cross-encoder. That made sense for the old
+# general-English `all-MiniLM-L6-v2` dense path. With the LeanDojo encoder the
+# semantic results are already strong and domain-tuned — the generic reranker
+# was actively reordering correct premises (Nat.add_comm, Nat.add_assoc, …)
+# below irrelevant matches (Ackermann, ZMod, choose). We dropped both layers.
 
 
 class MathLibRetriever:
     """
-    Hybrid FAISS + BM25 retriever with CrossEncoder reranking over Mathlib lemmas.
-
-    On first use, call build() to create and persist the index.
-    Subsequent runs load from disk automatically.
+    Lean-aware FAISS retriever over Mathlib premises using LeanDojo's ByT5
+    encoder. Loads an IVFPQ-compressed FAISS index built from LeanDojo's
+    pre-computed premise embeddings (see scripts/build_leandojo_index.py).
     """
 
     def __init__(
@@ -29,11 +33,16 @@ class MathLibRetriever:
         index_dir: Optional[str] = None,
         top_k: int = 20,
         rerank_top_k: int = 5,
+        nprobe: int = 32,
     ):
         self.index_dir = Path(index_dir) if index_dir else _DEFAULT_INDEX_DIR
         self.top_k = top_k
+        # `rerank_top_k` kept for back-compat; it just caps the number returned
+        # from the underlying FAISS search (we no longer rerank).
         self.rerank_top_k = rerank_top_k
+        self.nprobe = nprobe
         self._retriever = None
+        self._faiss_store: Optional[FAISS] = None
         self._missing_index_warned = False
 
     # ------------------------------------------------------------------
@@ -95,20 +104,19 @@ class MathLibRetriever:
         if len(query) > self._MAX_QUERY_CHARS:
             query = query[: self._MAX_QUERY_CHARS]
 
-        if self._retriever is None:
+        if self._faiss_store is None:
             if not self.is_index_built():
                 if not self._missing_index_warned:
                     print(
                         f"  [retriever] No FAISS index at {self.index_dir} — "
                         "skipping Mathlib RAG. The LLM will solve from its training "
-                        "knowledge of Mathlib only. Run `python scripts/build_index.py` "
+                        "knowledge of Mathlib only. Run `python scripts/build_leandojo_index.py` "
                         "to enable retrieval-augmented generation."
                     )
                     self._missing_index_warned = True
                 return []
             self._load()
-        results = self._retriever.invoke(query)
-        return results[: k or self.rerank_top_k]
+        return self._faiss_store.similarity_search(query, k=k or self.rerank_top_k)
 
     def is_index_built(self) -> bool:
         return (self.index_dir / "index.faiss").exists()
@@ -117,43 +125,25 @@ class MathLibRetriever:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _embeddings(self) -> HuggingFaceEmbeddings:
-        return HuggingFaceEmbeddings(model_name=_EMBED_MODEL)
+    def _embeddings(self) -> ByT5PremiseEmbedder:
+        return ByT5PremiseEmbedder()
 
     def _load(self) -> None:
         if not self.is_index_built():
             raise RuntimeError(
                 f"No FAISS index found at {self.index_dir}. "
-                "Run `python scripts/build_index.py` first."
+                "Run `python scripts/build_leandojo_index.py` first."
             )
         print("Loading FAISS index from disk…")
         embeddings = self._embeddings()
-        faiss_store = FAISS.load_local(
+        self._faiss_store = FAISS.load_local(
             str(self.index_dir),
             embeddings,
             allow_dangerous_deserialization=True,
         )
-
-        # Re-build BM25 from FAISS docstore
-        docs = list(faiss_store.docstore._dict.values())
-        self._retriever = self._build_retriever(faiss_store, docs)
-
-    def _build_retriever(self, faiss_store: FAISS, docs: List[Document]):
-        faiss_retriever = faiss_store.as_retriever(
-            search_kwargs={"k": self.top_k}
-        )
-        bm25_retriever = BM25Retriever.from_documents(docs)
-        bm25_retriever.k = self.top_k
-
-        ensemble = EnsembleRetriever(
-            retrievers=[faiss_retriever, bm25_retriever],
-            weights=[0.6, 0.4],
-        )
-
-        cross_encoder = HuggingFaceCrossEncoder(model_name=_RERANK_MODEL)
-        reranker = CrossEncoderReranker(model=cross_encoder, top_n=self.rerank_top_k)
-
-        return ContextualCompressionRetriever(
-            base_compressor=reranker,
-            base_retriever=ensemble,
-        )
+        # Tune IVFPQ search breadth. nprobe=32 / nlist=512 = 6% of clusters
+        # searched — good recall/speed tradeoff for this index size.
+        try:
+            self._faiss_store.index.nprobe = self.nprobe
+        except AttributeError:
+            pass  # not an IVF index — nothing to tune
