@@ -104,10 +104,9 @@ class _capture_stdout:
 
 
 GROQ_MODELS = [
-    "openai/gpt-oss-120b",                          # strongest open-weight option on Groq
-    "openai/gpt-oss-20b",                           # fast / cheap GPT-OSS
-    "qwen-2.5-coder-32b",                           # code-specialized
-    "deepseek-r1-distill-qwen-32b",                 # reasoning-distilled, smaller than 70b
+    "openai/gpt-oss-120b",                          # default, strongest open-weight on Groq
+    "openai/gpt-oss-20b",                           # fast / cheap GPT-OSS (also the fast-tier for two-stage retry)
+    "qwen/qwen3-32b",                               # Qwen 3, 32B reasoning model
     "meta-llama/llama-4-scout-17b-16e-instruct",    # Llama 4 MoE
 ]
 
