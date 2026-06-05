@@ -374,6 +374,81 @@ input[type="range"] { accent-color: var(--accent) !important; }
     font-size: 13px !important;
     background: var(--panel) !important;
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+   Bugfixes (UI v2): force-black text + bounded panel heights so the
+   page no longer grows vertically with the generated proof, and so
+   white-on-white text (dropdown options, code editor selected state,
+   logs textarea) is always readable.
+   ────────────────────────────────────────────────────────────────────── */
+
+/* Force readable text everywhere in code editors, regardless of theme/state. */
+.cm-editor,
+.cm-editor .cm-content,
+.cm-editor .cm-line,
+.cm-editor .cm-line span,
+.cm-editor .cm-content * {
+    color: #1A1A1A !important;
+}
+.cm-editor .cm-cursor { border-left-color: var(--accent) !important; }
+.cm-editor .cm-selectionBackground { background: var(--accent-soft) !important; }
+
+/* Logs / textarea outputs — never white on white. */
+textarea,
+.gradio-textbox textarea,
+.gradio-accordion textarea,
+input[type="text"],
+input[type="password"] {
+    color: #1A1A1A !important;
+    background: var(--panel) !important;
+}
+::placeholder { color: var(--text-muted) !important; opacity: 1 !important; }
+
+/* Dropdown popover (open list of model options) — main culprit for
+   white-on-white. Pin background to white, text to charcoal, and tint
+   the highlighted/selected row in Claude orange. */
+ul[role="listbox"],
+.gradio-dropdown ul,
+.gradio-dropdown [role="listbox"] {
+    background: #FFFFFF !important;
+    border: 1px solid var(--border) !important;
+    color: #1A1A1A !important;
+}
+ul[role="listbox"] li,
+.gradio-dropdown li,
+.gradio-dropdown [role="option"] {
+    color: #1A1A1A !important;
+    background: #FFFFFF !important;
+}
+ul[role="listbox"] li[aria-selected="true"],
+ul[role="listbox"] li:hover,
+.gradio-dropdown li:hover,
+.gradio-dropdown [role="option"][aria-selected="true"] {
+    background: var(--accent-soft) !important;
+    color: #1A1A1A !important;
+}
+
+/* Bound the editor panels so a long proof scrolls *inside* them
+   instead of stretching the page. ~520px is roughly 22 lines of code
+   at our font size + line-height, matching the gr.Code(lines=22) hint. */
+.panel {
+    max-height: 580px;
+}
+.panel .cm-editor {
+    max-height: 520px;
+    overflow: auto;
+}
+.panel .cm-scroller {
+    max-height: 520px;
+    overflow: auto !important;
+}
+
+/* Bound the logs accordion (open state) so it doesn't push the
+   status bar off-screen for long log runs. */
+.gradio-accordion textarea {
+    max-height: 240px;
+    overflow: auto !important;
+}
 """
 
 
