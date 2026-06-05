@@ -478,13 +478,10 @@ def solve_proof(lean_code: str, model_name: str, max_retries: int, anthropic_api
         # Two-stage retry: for Groq, try the cheap 8b on attempt 0 and
         # escalate to the user's chosen model on retry. Skip for Claude
         # (no clear cheap counterpart) and for users who explicitly picked 8b.
-        # Two-stage retry: cheapest Groq model first, escalate to the user's
-        # pick on retry. Skipped for Claude (no clear cheap counterpart) and
-        # when the user explicitly picks the fast tier itself.
+        # Two-stage retry disabled — every attempt uses the user-selected
+        # model so the proof generation behavior is predictable and matches
+        # what the dropdown shows.
         fast_model = None
-        FAST_TIER = "openai/gpt-oss-20b"
-        if not claude and model_name != FAST_TIER:
-            fast_model = FAST_TIER
 
         lean_env, retriever = _get_components()
 
@@ -610,17 +607,41 @@ with gr.Blocks(
             placeholder="Agent attempts, retrieval, and verifier output will stream here…",
         )
 
+    # ─── Generation-state tracking ──────────────────────────────────
+    # Flips True while solve_proof is running so the model-change handler
+    # can warn the user that switching mid-flight won't affect the current
+    # attempt.
+    running_state = gr.State(False)
+
+    def _start_run():
+        return True
+
+    def _end_run():
+        return False
+
+    def _warn_on_model_change(running: bool):
+        if running:
+            gr.Warning(
+                "Generation in progress — switching the model now won't "
+                "affect the current attempt and will reset for the next "
+                "Solve / Regenerate click."
+            )
+
+    model_dropdown.change(_warn_on_model_change, inputs=running_state)
+
     # ─── Wiring ─────────────────────────────────────────────────────
-    solve_btn.click(
+    solve_btn.click(_start_run, outputs=running_state).then(
         solve_proof,
         inputs=[lean_input, model_dropdown, retries_slider, anthropic_key_input],
         outputs=[status_output, code_output, logs_output],
-    )
-    regen_btn.click(
+    ).then(_end_run, outputs=running_state)
+
+    regen_btn.click(_start_run, outputs=running_state).then(
         solve_proof,
         inputs=[lean_input, model_dropdown, retries_slider, anthropic_key_input],
         outputs=[status_output, code_output, logs_output],
-    )
+    ).then(_end_run, outputs=running_state)
+
     reset_btn.click(lambda: EXAMPLE_CODE, outputs=lean_input)
     copy_btn.click(
         fn=None, inputs=code_output,
