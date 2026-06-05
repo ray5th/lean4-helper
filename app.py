@@ -104,10 +104,11 @@ class _capture_stdout:
 
 
 GROQ_MODELS = [
-    "llama-3.3-70b-versatile",
-    "deepseek-r1-distill-llama-70b",
-    "gemma2-9b-it",
-    "llama-3.1-8b-instant",
+    "openai/gpt-oss-120b",                          # strongest open-weight option on Groq
+    "openai/gpt-oss-20b",                           # fast / cheap GPT-OSS
+    "qwen-2.5-coder-32b",                           # code-specialized
+    "deepseek-r1-distill-qwen-32b",                 # reasoning-distilled, smaller than 70b
+    "meta-llama/llama-4-scout-17b-16e-instruct",    # Llama 4 MoE
 ]
 
 CLAUDE_MODELS = [
@@ -478,9 +479,13 @@ def solve_proof(lean_code: str, model_name: str, max_retries: int, anthropic_api
         # Two-stage retry: for Groq, try the cheap 8b on attempt 0 and
         # escalate to the user's chosen model on retry. Skip for Claude
         # (no clear cheap counterpart) and for users who explicitly picked 8b.
+        # Two-stage retry: cheapest Groq model first, escalate to the user's
+        # pick on retry. Skipped for Claude (no clear cheap counterpart) and
+        # when the user explicitly picks the fast tier itself.
         fast_model = None
-        if not claude and model_name != "llama-3.1-8b-instant":
-            fast_model = "llama-3.1-8b-instant"
+        FAST_TIER = "openai/gpt-oss-20b"
+        if not claude and model_name != FAST_TIER:
+            fast_model = FAST_TIER
 
         lean_env, retriever = _get_components()
 
