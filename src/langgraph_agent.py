@@ -121,7 +121,13 @@ def make_verify_node(lean_env: LeanEnvironment):
 
 def make_retrieve_node(retriever: MathLibRetriever):
     def retrieve_node(state: ProofState) -> ProofState:
-        query = " ".join(state["goals"] + state["errors"])
+        # Query with goals only, newline-joined: the LeanDojo encoder was
+        # trained on canonical proof states ("h1 : T1\nh2 : T2\n⊢ goal"), so
+        # Lean error text is off-distribution noise in the embedding. Errors
+        # still reach the LLM via the generation prompt — just not retrieval.
+        # No open goals (e.g. pure syntax error) → empty query → retriever
+        # returns [] and generation proceeds without premises.
+        query = "\n\n".join(state["goals"])
         print("Retrieving relevant Mathlib lemmas…")
         lemmas = retriever.retrieve(query)
         print(f"  Retrieved {len(lemmas)} lemma(s).")

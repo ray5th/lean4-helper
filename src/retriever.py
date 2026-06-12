@@ -143,7 +143,13 @@ class MathLibRetriever:
         )
         # Tune IVFPQ search breadth. nprobe=32 / nlist=512 = 6% of clusters
         # searched — good recall/speed tradeoff for this index size.
+        # extract_index_ivf reaches the IVF layer even if the index is later
+        # wrapped (e.g. IndexIDMap); setting nprobe on a wrapper is silently
+        # ignored by FAISS, which this guards against.
+        import faiss
         try:
-            self._faiss_store.index.nprobe = self.nprobe
-        except AttributeError:
-            pass  # not an IVF index — nothing to tune
+            faiss.extract_index_ivf(self._faiss_store.index).nprobe = self.nprobe
+        except (RuntimeError, TypeError):
+            # RuntimeError: no IVF layer (e.g. flat index) — nothing to tune.
+            # TypeError: not a real faiss index (e.g. a test double).
+            pass
