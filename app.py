@@ -105,7 +105,7 @@ class _capture_stdout:
 
 GROQ_MODELS = [
     "openai/gpt-oss-120b",                          # default, strongest open-weight on Groq
-    "openai/gpt-oss-20b",                           # fast / cheap GPT-OSS (also the fast-tier for two-stage retry)
+    "openai/gpt-oss-20b",                           # fast / cheap GPT-OSS
     "qwen/qwen3-32b",                               # Qwen 3, 32B reasoning model
     "meta-llama/llama-4-scout-17b-16e-instruct",    # Llama 4 MoE
 ]
@@ -145,16 +145,22 @@ CUSTOM_CSS = """
     --accent-soft: #FBE9DF;
     --ok:          #2E7D55;
     --err:         #B85450;
+    --shadow-sm:   0 1px 2px rgba(26,26,26,0.04), 0 2px 8px rgba(26,26,26,0.04);
+    --shadow-md:   0 2px 4px rgba(26,26,26,0.05), 0 8px 24px rgba(26,26,26,0.07);
 }
 
-/* Container reset */
+/* ─── Container ─── */
 .gradio-container {
-    background: var(--bg) !important;
+    background-color: var(--bg) !important;
+    /* soft warm glow behind the header, fading into the cream base */
+    background-image: radial-gradient(900px 360px at 50% -120px, #F8E8DD 0%, rgba(248,232,221,0) 70%) !important;
+    background-repeat: no-repeat !important;
     color: var(--text) !important;
+    color-scheme: light;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
     max-width: 1400px !important;
     margin: 0 auto !important;
-    padding: 32px 24px !important;
+    padding: 36px 28px 28px !important;
 }
 footer, .show-api { display: none !important; }
 
@@ -163,54 +169,89 @@ footer, .show-api { display: none !important; }
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 28px;
     padding: 0 4px;
 }
 #header .title {
-    font-size: 20px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    font-size: 22px;
+    font-weight: 650;
+    letter-spacing: -0.02em;
     color: var(--text);
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 11px;
 }
 #header .title .mark {
-    color: var(--accent);
-    font-size: 22px;
-}
-#header .sub {
-    font-size: 13px;
-    color: var(--text-muted);
-}
-
-/* ─── Top control bar (model + retries) ─── */
-#controls {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 16px;
-    margin-bottom: 16px;
-    padding: 12px 16px;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, var(--accent) 0%, #E8946F 100%);
+    color: #fff;
+    font-size: 16px;
+    box-shadow: 0 2px 6px rgba(217,119,87,0.35);
+}
+#header .chips { display: flex; gap: 6px; }
+#header .chip {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text-muted);
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 999px;
+    padding: 4px 11px;
 }
-#controls label {
-    font-size: 12px !important;
+
+/* ─── Controls bar ─── */
+#controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+    margin-bottom: 18px;
+    padding: 14px 18px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+}
+/* strip Gradio's inner block chrome so controls sit flat in the bar */
+#controls .block, #controls .form {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+/* component labels — small caps over each field */
+#controls span[data-testid="block-info"],
+#controls label > span:first-child {
+    display: inline-block;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
     color: var(--text-muted) !important;
-    font-weight: 500 !important;
-    margin: 0 6px 0 0 !important;
+    margin-bottom: 5px !important;
 }
-#controls .gradio-dropdown,
-#controls .gradio-slider { margin: 0 !important; }
 
 /* ─── Editor panels ─── */
 .panel {
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    max-height: 580px;
+}
+.panel:focus-within {
+    box-shadow: var(--shadow-md);
+    border-color: #DCD8CC;
 }
 .panel-header {
     display: flex !important;
@@ -220,7 +261,7 @@ footer, .show-api { display: none !important; }
     background: var(--panel-tint) !important;
     border-bottom: 1px solid var(--border-soft) !important;
     gap: 8px !important;
-    min-height: 44px;
+    min-height: 46px;
 }
 .panel-title {
     font-family: 'JetBrains Mono', ui-monospace, "SF Mono", Menlo, monospace;
@@ -237,6 +278,7 @@ footer, .show-api { display: none !important; }
     height: 8px;
     border-radius: 50%;
     background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
     display: inline-block;
 }
 .panel-header .panel-actions {
@@ -245,28 +287,34 @@ footer, .show-api { display: none !important; }
     align-items: center;
 }
 
-/* ─── Buttons in panel headers ─── */
+/* ─── Buttons ─── */
 .btn button {
-    background: transparent !important;
+    background: var(--panel) !important;
     color: var(--text) !important;
     border: 1px solid var(--border) !important;
-    border-radius: 6px !important;
-    padding: 5px 12px !important;
+    border-radius: 7px !important;
+    padding: 5px 13px !important;
     font-size: 12px !important;
-    font-weight: 500 !important;
+    font-weight: 550 !important;
     min-width: 0 !important;
-    box-shadow: none !important;
+    box-shadow: 0 1px 2px rgba(26,26,26,0.04) !important;
     transition: all 0.15s ease !important;
     cursor: pointer;
 }
 .btn button:hover {
     background: var(--panel-tint) !important;
-    border-color: var(--text-muted) !important;
+    border-color: #CFCBBE !important;
+}
+.btn button:active { transform: translateY(1px); }
+.btn button:focus-visible {
+    outline: 2px solid var(--accent) !important;
+    outline-offset: 2px !important;
 }
 .btn-primary button {
     background: var(--accent) !important;
     color: white !important;
     border: 1px solid var(--accent) !important;
+    box-shadow: 0 1px 3px rgba(217,119,87,0.4) !important;
 }
 .btn-primary button:hover {
     background: var(--accent-hover) !important;
@@ -279,6 +327,8 @@ footer, .show-api { display: none !important; }
     font-family: 'JetBrains Mono', ui-monospace, "SF Mono", Menlo, monospace !important;
     font-size: 13px !important;
     line-height: 1.7 !important;
+    max-height: 520px;
+    overflow: auto;
 }
 .cm-content { color: var(--text) !important; padding: 12px 0 !important; }
 .cm-gutters {
@@ -290,6 +340,26 @@ footer, .show-api { display: none !important; }
 .cm-activeLineGutter { background: var(--panel-tint) !important; color: var(--text) !important; }
 .cm-cursor { border-left-color: var(--accent) !important; }
 .cm-selectionBackground { background: var(--accent-soft) !important; }
+.cm-scroller { max-height: 520px; overflow: auto !important; }
+
+/* readable text in editors regardless of theme/state */
+.cm-editor, .cm-editor .cm-content, .cm-editor .cm-line,
+.cm-editor .cm-line span, .cm-editor .cm-content * {
+    color: #1A1A1A !important;
+}
+
+/* thin warm scrollbars in code panes + logs */
+.cm-scroller::-webkit-scrollbar,
+.gradio-accordion textarea::-webkit-scrollbar { width: 8px; height: 8px; }
+.cm-scroller::-webkit-scrollbar-thumb,
+.gradio-accordion textarea::-webkit-scrollbar-thumb {
+    background: #DDD9CD;
+    border-radius: 4px;
+}
+.cm-scroller::-webkit-scrollbar-thumb:hover,
+.gradio-accordion textarea::-webkit-scrollbar-thumb:hover { background: #C9C5B8; }
+.cm-scroller::-webkit-scrollbar-track,
+.gradio-accordion textarea::-webkit-scrollbar-track { background: transparent; }
 
 /* Remove the harsh default block borders Gradio puts around gr.Code */
 .gr-block.gr-code, .gradio-code {
@@ -298,21 +368,26 @@ footer, .show-api { display: none !important; }
 }
 
 /* ─── Spacing between the two panes ─── */
-#editor-row { gap: 16px !important; }
+#editor-row { gap: 18px !important; }
+@media (max-width: 900px) {
+    #editor-row { flex-direction: column !important; }
+    #controls { flex-wrap: wrap; }
+}
 
 /* ─── Logs accordion ─── */
 .gradio-accordion {
     background: var(--panel) !important;
     border: 1px solid var(--border) !important;
-    border-radius: 10px !important;
+    border-radius: 12px !important;
     margin-top: 16px !important;
     overflow: hidden;
+    box-shadow: var(--shadow-sm);
 }
 .gradio-accordion > button {
     background: var(--panel-tint) !important;
     color: var(--text-muted) !important;
     font-size: 12px !important;
-    font-weight: 500 !important;
+    font-weight: 550 !important;
     padding: 10px 14px !important;
     border: none !important;
     text-align: left !important;
@@ -325,6 +400,8 @@ footer, .show-api { display: none !important; }
     font-size: 12px !important;
     padding: 12px 14px !important;
     line-height: 1.6 !important;
+    max-height: 240px;
+    overflow: auto !important;
 }
 
 /* ─── Status bar ─── */
@@ -333,39 +410,56 @@ footer, .show-api { display: none !important; }
     align-items: center;
     gap: 12px;
     margin-top: 16px;
-    padding: 10px 14px;
+    padding: 11px 16px;
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 12px;
     font-size: 13px;
     color: var(--text);
+    box-shadow: var(--shadow-sm);
 }
 #status-bar .pill {
     display: inline-flex;
     align-items: center;
-    padding: 2px 10px;
+    gap: 6px;
+    padding: 3px 11px;
     font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.4px;
+    font-weight: 650;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
     border-radius: 999px;
+    white-space: nowrap;
 }
 #status-bar .pill.ok    { background: #E8F3EC; color: var(--ok); }
 #status-bar .pill.err   { background: #FBE9E7; color: var(--err); }
 #status-bar .pill.idle  { background: var(--panel-tint); color: var(--text-muted); }
+#status-bar .pill.run   { background: var(--accent-soft); color: var(--accent-hover); }
+#status-bar .pill.run::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: statpulse 1.2s ease-in-out infinite;
+}
+@keyframes statpulse {
+    0%, 100% { opacity: 0.35; transform: scale(0.8); }
+    50%      { opacity: 1;    transform: scale(1.15); }
+}
 
-/* ─── Form chrome (dropdown, slider) ─── */
+/* ─── Form chrome (dropdown, slider, key field) ─── */
 .gradio-dropdown input,
 .gradio-dropdown .wrap {
     background: var(--panel) !important;
     color: var(--text) !important;
     border: 1px solid var(--border) !important;
-    border-radius: 6px !important;
+    border-radius: 7px !important;
     font-size: 13px !important;
 }
 .gradio-dropdown input:focus,
 .gradio-dropdown .wrap:focus-within {
     border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px var(--accent-soft) !important;
     outline: none !important;
 }
 input[type="range"] { accent-color: var(--accent) !important; }
@@ -373,45 +467,32 @@ input[type="range"] { accent-color: var(--accent) !important; }
     color: var(--text) !important;
     font-size: 13px !important;
     background: var(--panel) !important;
+    font-variant-numeric: tabular-nums;
+}
+input[type="password"], input[type="text"] {
+    border-radius: 7px !important;
+}
+input[type="password"]:focus, input[type="text"]:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px var(--accent-soft) !important;
 }
 
-/* ──────────────────────────────────────────────────────────────────────
-   Bugfixes (UI v2): force-black text + bounded panel heights so the
-   page no longer grows vertically with the generated proof, and so
-   white-on-white text (dropdown options, code editor selected state,
-   logs textarea) is always readable.
-   ────────────────────────────────────────────────────────────────────── */
-
-/* Force readable text everywhere in code editors, regardless of theme/state. */
-.cm-editor,
-.cm-editor .cm-content,
-.cm-editor .cm-line,
-.cm-editor .cm-line span,
-.cm-editor .cm-content * {
-    color: #1A1A1A !important;
-}
-.cm-editor .cm-cursor { border-left-color: var(--accent) !important; }
-.cm-editor .cm-selectionBackground { background: var(--accent-soft) !important; }
-
-/* Logs / textarea outputs — never white on white. */
-textarea,
-.gradio-textbox textarea,
-.gradio-accordion textarea,
-input[type="text"],
-input[type="password"] {
+/* inputs / textareas — never white on white */
+textarea, .gradio-textbox textarea, .gradio-accordion textarea,
+input[type="text"], input[type="password"] {
     color: #1A1A1A !important;
     background: var(--panel) !important;
 }
 ::placeholder { color: var(--text-muted) !important; opacity: 1 !important; }
 
-/* Dropdown popover (open list of model options) — main culprit for
-   white-on-white. Pin background to white, text to charcoal, and tint
-   the highlighted/selected row in Claude orange. */
+/* dropdown popover — pinned light so options never go white-on-white */
 ul[role="listbox"],
 .gradio-dropdown ul,
 .gradio-dropdown [role="listbox"] {
     background: #FFFFFF !important;
     border: 1px solid var(--border) !important;
+    border-radius: 9px !important;
+    box-shadow: var(--shadow-md) !important;
     color: #1A1A1A !important;
 }
 ul[role="listbox"] li,
@@ -419,6 +500,7 @@ ul[role="listbox"] li,
 .gradio-dropdown [role="option"] {
     color: #1A1A1A !important;
     background: #FFFFFF !important;
+    font-size: 13px !important;
 }
 ul[role="listbox"] li[aria-selected="true"],
 ul[role="listbox"] li:hover,
@@ -426,28 +508,6 @@ ul[role="listbox"] li:hover,
 .gradio-dropdown [role="option"][aria-selected="true"] {
     background: var(--accent-soft) !important;
     color: #1A1A1A !important;
-}
-
-/* Bound the editor panels so a long proof scrolls *inside* them
-   instead of stretching the page. ~520px is roughly 22 lines of code
-   at our font size + line-height, matching the gr.Code(lines=22) hint. */
-.panel {
-    max-height: 580px;
-}
-.panel .cm-editor {
-    max-height: 520px;
-    overflow: auto;
-}
-.panel .cm-scroller {
-    max-height: 520px;
-    overflow: auto !important;
-}
-
-/* Bound the logs accordion (open state) so it doesn't push the
-   status bar off-screen for long log runs. */
-.gradio-accordion textarea {
-    max-height: 240px;
-    overflow: auto !important;
 }
 """
 
@@ -475,23 +535,17 @@ def solve_proof(lean_code: str, model_name: str, max_retries: int, anthropic_api
         tmp.write(lean_code)
         tmp.close()
 
-        # Two-stage retry: for Groq, try the cheap 8b on attempt 0 and
-        # escalate to the user's chosen model on retry. Skip for Claude
-        # (no clear cheap counterpart) and for users who explicitly picked 8b.
-        # Two-stage retry disabled — every attempt uses the user-selected
-        # model so the proof generation behavior is predictable and matches
-        # what the dropdown shows.
-        fast_model = None
-
         lean_env, retriever = _get_components()
 
         log_buf = io.StringIO()
         with _capture_stdout(log_buf):
+            # fast_model=None: two-stage retry is disabled so every attempt
+            # uses the user-selected model and behavior matches the dropdown.
             agent = LangGraphAgent(
                 model_name=model_name,
                 max_retries=int(max_retries),
                 api_key=api_key,
-                fast_model=fast_model,
+                fast_model=None,
                 lean_env=lean_env,
                 retriever=retriever,
             )
@@ -523,7 +577,7 @@ def solve_proof(lean_code: str, model_name: str, max_retries: int, anthropic_api
 
 
 def _status_html(kind: str, message: str) -> str:
-    label = {"ok": "Solved", "err": "Failed", "idle": "Idle"}.get(kind, kind)
+    label = {"ok": "Solved", "err": "Failed", "idle": "Idle", "run": "Solving"}.get(kind, kind)
     return (
         f'<div id="status-bar">'
         f'<span class="pill {kind}">{label}</span>'
@@ -547,7 +601,11 @@ with gr.Blocks(
         """
         <div id="header">
             <div class="title"><span class="mark">◆</span> Lean 4 Proof Assistant</div>
-            <div class="sub">Mathlib RAG · Groq · LangGraph</div>
+            <div class="chips">
+                <span class="chip">Lean 4</span>
+                <span class="chip">Mathlib RAG</span>
+                <span class="chip">LangGraph</span>
+            </div>
         </div>
         """
     )
@@ -556,18 +614,16 @@ with gr.Blocks(
     with gr.Row(elem_id="controls"):
         model_dropdown = gr.Dropdown(
             choices=ALL_MODELS, value=GROQ_MODELS[0],
-            label="Model", show_label=True, container=False, scale=2,
+            label="Model", scale=2,
         )
         retries_slider = gr.Slider(
             minimum=1, maximum=10, value=5, step=1,
-            label="Max retries", show_label=True, container=False, scale=1,
+            label="Max retries", scale=1,
         )
         anthropic_key_input = gr.Textbox(
-            label="Anthropic API key (only for Claude models)",
+            label="Anthropic API key (Claude models only)",
             placeholder="sk-ant-…",
             type="password",
-            show_label=True,
-            container=False,
             scale=2,
         )
 
@@ -619,6 +675,9 @@ with gr.Blocks(
     def _end_run():
         return False
 
+    def _show_running(model_name: str):
+        return _status_html("run", f"Solving with {model_name} — this can take a minute…")
+
     def _warn_on_model_change(running: bool):
         if running:
             gr.Warning(
@@ -631,12 +690,16 @@ with gr.Blocks(
 
     # ─── Wiring ─────────────────────────────────────────────────────
     solve_btn.click(_start_run, outputs=running_state).then(
+        _show_running, inputs=model_dropdown, outputs=status_output,
+    ).then(
         solve_proof,
         inputs=[lean_input, model_dropdown, retries_slider, anthropic_key_input],
         outputs=[status_output, code_output, logs_output],
     ).then(_end_run, outputs=running_state)
 
     regen_btn.click(_start_run, outputs=running_state).then(
+        _show_running, inputs=model_dropdown, outputs=status_output,
+    ).then(
         solve_proof,
         inputs=[lean_input, model_dropdown, retries_slider, anthropic_key_input],
         outputs=[status_output, code_output, logs_output],
