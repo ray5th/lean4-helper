@@ -21,18 +21,30 @@ sys.path.insert(0, "src")
 sys.modules.pop("langgraph_agent", None)
 
 # `langgraph_agent` imports lean_verifier + retriever + rag_chain which each
-# pull in heavyweight ML libs. Mock those three modules directly so we can
-# import the helpers without installing langchain-groq / lean-interact.
-for _mod in ("lean_verifier", "retriever", "rag_chain"):
+# pull in heavyweight ML libs. Mock those three modules just long enough to
+# import the pure helpers, then RESTORE sys.modules — leaving MagicMocks
+# behind poisons every test module imported after this one during discovery.
+_DEPS = ("lean_verifier", "retriever", "rag_chain")
+_saved = {m: sys.modules.get(m) for m in _DEPS}
+for _mod in _DEPS:
     sys.modules[_mod] = mock.MagicMock()
+try:
+    import langgraph_agent
 
-import langgraph_agent
-
-importlib.reload(langgraph_agent)  # ensure regex/keyword changes are picked up
-_count_theorem_blocks = langgraph_agent._count_theorem_blocks
-_extract_lean_code = langgraph_agent._extract_lean_code
-_read_file = langgraph_agent._read_file
-_write_file = langgraph_agent._write_file
+    importlib.reload(langgraph_agent)  # ensure regex/keyword changes are picked up
+    _count_theorem_blocks = langgraph_agent._count_theorem_blocks
+    _extract_lean_code = langgraph_agent._extract_lean_code
+    _read_file = langgraph_agent._read_file
+    _write_file = langgraph_agent._write_file
+finally:
+    for _mod, _orig in _saved.items():
+        if _orig is not None:
+            sys.modules[_mod] = _orig
+        else:
+            sys.modules.pop(_mod, None)
+    # This langgraph_agent was built against mocks — evict it so later
+    # importers get a real one.
+    sys.modules.pop("langgraph_agent", None)
 
 
 class TestCountTheoremBlocksKeywordFix(unittest.TestCase):
@@ -132,25 +144,8 @@ class TestUtf8FileIO(unittest.TestCase):
             os.unlink(path)
 
 
-class TestProofAgentDefaultModel(unittest.TestCase):
-    """
-    `ProofAgent` used to default to `qwen3-vl:4b` (an Ollama model name) after
-    the Groq migration, which would fail at runtime. Now defaults to a real
-    Groq model.
-    """
-
-    def test_default_model_is_not_a_stale_ollama_name(self):
-        # Inspect the function default directly — avoids needing a working
-        # LangGraphAgent mock chain.
-        import inspect
-
-        import proof_agent
-
-        sig = inspect.signature(proof_agent.ProofAgent.__init__)
-        default = sig.parameters["model_name"].default
-        self.assertNotIn("qwen", default.lower())
-        self.assertNotIn(":", default,
-                         "Default looks like an Ollama 'name:tag' format")
+# (A TestProofAgentDefaultModel regression test lived here until the unused
+# `proof_agent` wrapper module it covered was deleted.)
 
 
 if __name__ == "__main__":

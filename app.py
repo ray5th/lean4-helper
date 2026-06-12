@@ -621,10 +621,10 @@ with gr.Blocks(
             label="Max retries", scale=1,
         )
         anthropic_key_input = gr.Textbox(
-            label="Anthropic API key (Claude models only)",
-            placeholder="sk-ant-…",
+            label="Claude API key (optional)",
+            placeholder="sk-ant-… — only for Claude models",
             type="password",
-            scale=2,
+            scale=1,
         )
 
     # ─── Two editor panes ───────────────────────────────────────────
