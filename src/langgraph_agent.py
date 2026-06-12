@@ -46,6 +46,12 @@ def _write_file(path: str, code: str) -> None:
 # accidentally consume the "ish" into the code body.
 _LEAN_FENCE_RE = re.compile(r"```\s*lean[0-9]*\s*\n", re.IGNORECASE)
 
+# Citation comment the prompt asks the model to emit on its first line
+# (`-- used: Nat.add_comm` / `-- used: none`). Logged as feedback on whether
+# retrieved premises were actually useful — the seed data for a retrieval
+# eval harness.
+_USED_CITATION_RE = re.compile(r"^--\s*used:\s*(.+)$", re.MULTILINE)
+
 
 def _extract_lean_code(text: str) -> str:
     """
@@ -155,6 +161,9 @@ def make_generate_node(strong_chain: RAGProofChain, fast_chain: RAGProofChain | 
             retrieved_lemmas=state["retrieved_lemmas"],
         )
         extracted = _extract_lean_code(raw)
+        citation = _USED_CITATION_RE.search(extracted)
+        if citation:
+            print(f"  [rag] lemmas cited as used: {citation.group(1).strip()}")
         # Detect empty/whitespace-only LLM output *before* sanitization, since
         # _sanitize_imports unconditionally prepends "import Mathlib" and would
         # otherwise mask an empty response as a non-empty payload.

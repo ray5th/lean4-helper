@@ -82,6 +82,11 @@ RULES:
 2. Keep every theorem/example signature EXACTLY as given — do not alter names or types.
 3. Replace each `sorry` with correct Lean 4 tactics.
 4. Respond ONLY with the complete corrected Lean code inside a single ```lean ... ``` block.
+5. Retrieved lemmas are OPTIONAL hints and may be irrelevant — ignore any that
+   don't directly help. Never invent lemma names: only cite a retrieved lemma
+   or one you are certain exists in Mathlib.
+6. Start your code block with a citation comment: `-- used: <FullLemmaName>`
+   for each retrieved lemma you actually used, or `-- used: none`.
 
 LEAN 4 TACTIC REFERENCE:
 - `linarith`          — closes linear arithmetic goals; accepts extra hints: `linarith [sq_nonneg x]`
@@ -141,6 +146,22 @@ example {{a b : ℝ}} (h1 : a - 5 * b = 4) (h2 : b + 2 = 3) : a = 9 ∧ b = 1 :=
 -- Exists goal: use `use`
 example : ∃ n : ℤ, 12 * n = 84 := by
   use 7; norm_num
+
+USING A RETRIEVED LEMMA (note the citation comment on the first line):
+
+Given retrieved lemma:
+  -- Nat.succ_le_iff
+  theorem succ_le_iff {{m n : ℕ}} : succ m ≤ n ↔ m < n
+
+A correct response:
+```lean
+-- used: Nat.succ_le_iff
+import Mathlib
+
+theorem demo {{m n : ℕ}} (h : m < n) : Nat.succ m ≤ n := by
+  rw [Nat.succ_le_iff]
+  exact h
+```
 """
 
 _HUMAN = """\
@@ -149,16 +170,24 @@ _HUMAN = """\
 {lean_code}
 ```
 
+## Auto-retrieved Mathlib lemmas — MAY BE IRRELEVANT
+These were retrieved automatically and are hints only. Most may not apply.
+Use a lemma only if it directly closes or advances a goal; otherwise ignore
+them all. Refer to lemmas by the fully-qualified name in the `--` comment
+above each declaration.
+
+{retrieved_lemmas}
+
 ## Open Proof Goals
 {goals}
 
 ## Lean Errors
 {errors}
 
-## Relevant Mathlib Lemmas
-{retrieved_lemmas}
-
 Provide the corrected Lean code that solves all goals and fixes all errors.
+The FIRST line inside your ```lean block must be a citation comment naming
+the retrieved lemma(s) you actually used, or `none`:
+`-- used: Nat.add_comm` / `-- used: none`
 """
 
 
@@ -184,11 +213,19 @@ def _make_llm(model_name: str, api_key: Optional[str]):
 
 
 def _format_docs(docs: List[Document]) -> str:
+    """
+    Render retrieved premises as a fenced Lean block. Each declaration is
+    preceded by a `--` comment with its fully-qualified name — page_content
+    often shows only the short name (`protected theorem add_comm …`), but the
+    model must cite/apply the full name (`Nat.add_comm`).
+    """
     if not docs:
         return "(none retrieved)"
-    return "\n".join(
-        f"- `{d.metadata.get('name', '?')}`: {d.page_content}" for d in docs
+    decls = "\n\n".join(
+        f"-- {d.metadata.get('name', '?')}\n{d.page_content.strip()}"
+        for d in docs
     )
+    return f"```lean\n{decls}\n```"
 
 
 class RAGProofChain:
