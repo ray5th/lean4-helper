@@ -145,79 +145,50 @@ CUSTOM_CSS = """
     --accent-soft: #FBE9DF;
     --ok:          #2E7D55;
     --err:         #B85450;
-    --shadow-sm:   0 1px 2px rgba(26,26,26,0.04), 0 2px 8px rgba(26,26,26,0.04);
-    --shadow-md:   0 2px 4px rgba(26,26,26,0.05), 0 8px 24px rgba(26,26,26,0.07);
 }
 
 /* ─── Container ─── */
 .gradio-container {
-    background-color: var(--bg) !important;
-    /* soft warm glow behind the header, fading into the cream base */
-    background-image: radial-gradient(900px 360px at 50% -120px, #F8E8DD 0%, rgba(248,232,221,0) 70%) !important;
-    background-repeat: no-repeat !important;
+    background: var(--bg) !important;
     color: var(--text) !important;
     color-scheme: light;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
-    max-width: 1400px !important;
+    max-width: 1280px !important;
     margin: 0 auto !important;
-    padding: 36px 28px 28px !important;
+    padding: 44px 28px 28px !important;
 }
 footer, .show-api { display: none !important; }
 
 /* ─── Header ─── */
 #header {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 28px;
-    padding: 0 4px;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 32px;
+    padding: 0 2px;
 }
 #header .title {
-    font-size: 22px;
-    font-weight: 650;
-    letter-spacing: -0.02em;
-    color: var(--text);
-    display: flex;
-    align-items: center;
-    gap: 11px;
-}
-#header .title .mark {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 9px;
-    background: linear-gradient(135deg, var(--accent) 0%, #E8946F 100%);
-    color: #fff;
-    font-size: 16px;
-    box-shadow: 0 2px 6px rgba(217,119,87,0.35);
-}
-#header .chips { display: flex; gap: 6px; }
-#header .chip {
-    font-size: 11px;
+    font-size: 21px;
     font-weight: 600;
-    letter-spacing: 0.02em;
+    letter-spacing: -0.01em;
+    color: var(--text);
+}
+#header .sub {
+    font-size: 13px;
     color: var(--text-muted);
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 4px 11px;
+    letter-spacing: 0.01em;
 }
 
 /* ─── Controls bar ─── */
 #controls {
     display: flex;
     align-items: flex-end;
-    gap: 20px;
-    margin-bottom: 18px;
-    padding: 14px 18px;
+    gap: 22px;
+    margin-bottom: 16px;
+    padding: 14px 16px;
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    box-shadow: var(--shadow-sm);
+    border-radius: 10px;
 }
 /* strip Gradio's inner block chrome so controls sit flat in the bar */
 #controls .block, #controls .form {
@@ -243,43 +214,29 @@ footer, .show-api { display: none !important; }
 .panel {
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: 10px;
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
-    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    transition: border-color 0.15s ease;
     max-height: 580px;
 }
 .panel:focus-within {
-    box-shadow: var(--shadow-md);
-    border-color: #DCD8CC;
+    border-color: #D2CEC1;
 }
 .panel-header {
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
-    padding: 10px 14px !important;
+    padding: 9px 14px !important;
     background: var(--panel-tint) !important;
     border-bottom: 1px solid var(--border-soft) !important;
     gap: 8px !important;
-    min-height: 46px;
+    min-height: 44px;
 }
 .panel-title {
     font-family: 'JetBrains Mono', ui-monospace, "SF Mono", Menlo, monospace;
     font-size: 12px;
-    color: var(--text);
+    color: var(--text-muted);
     font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.panel-title::before {
-    content: "";
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-soft);
-    display: inline-block;
 }
 .panel-header .panel-actions {
     display: flex;
@@ -290,35 +247,35 @@ footer, .show-api { display: none !important; }
 /* ─── Buttons ─── */
 .btn button {
     background: var(--panel) !important;
-    color: var(--text) !important;
+    color: var(--text-muted) !important;
     border: 1px solid var(--border) !important;
-    border-radius: 7px !important;
+    border-radius: 6px !important;
     padding: 5px 13px !important;
     font-size: 12px !important;
-    font-weight: 550 !important;
+    font-weight: 500 !important;
     min-width: 0 !important;
-    box-shadow: 0 1px 2px rgba(26,26,26,0.04) !important;
-    transition: all 0.15s ease !important;
+    box-shadow: none !important;
+    transition: color 0.15s ease, border-color 0.15s ease !important;
     cursor: pointer;
 }
 .btn button:hover {
-    background: var(--panel-tint) !important;
+    color: var(--text) !important;
     border-color: #CFCBBE !important;
 }
-.btn button:active { transform: translateY(1px); }
 .btn button:focus-visible {
-    outline: 2px solid var(--accent) !important;
-    outline-offset: 2px !important;
+    outline: 1px solid var(--accent) !important;
+    outline-offset: 1px !important;
 }
 .btn-primary button {
     background: var(--accent) !important;
     color: white !important;
     border: 1px solid var(--accent) !important;
-    box-shadow: 0 1px 3px rgba(217,119,87,0.4) !important;
+    box-shadow: none !important;
 }
 .btn-primary button:hover {
     background: var(--accent-hover) !important;
     border-color: var(--accent-hover) !important;
+    color: white !important;
 }
 
 /* ─── Code editors ─── */
@@ -378,16 +335,15 @@ footer, .show-api { display: none !important; }
 .gradio-accordion {
     background: var(--panel) !important;
     border: 1px solid var(--border) !important;
-    border-radius: 12px !important;
+    border-radius: 10px !important;
     margin-top: 16px !important;
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
 }
 .gradio-accordion > button {
     background: var(--panel-tint) !important;
     color: var(--text-muted) !important;
     font-size: 12px !important;
-    font-weight: 550 !important;
+    font-weight: 500 !important;
     padding: 10px 14px !important;
     border: none !important;
     text-align: left !important;
@@ -413,39 +369,25 @@ footer, .show-api { display: none !important; }
     padding: 11px 16px;
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 10px;
     font-size: 13px;
     color: var(--text);
-    box-shadow: var(--shadow-sm);
 }
 #status-bar .pill {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 3px 11px;
+    padding: 2px 10px;
     font-size: 11px;
-    font-weight: 650;
+    font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    border-radius: 999px;
+    border-radius: 5px;
     white-space: nowrap;
 }
 #status-bar .pill.ok    { background: #E8F3EC; color: var(--ok); }
 #status-bar .pill.err   { background: #FBE9E7; color: var(--err); }
 #status-bar .pill.idle  { background: var(--panel-tint); color: var(--text-muted); }
 #status-bar .pill.run   { background: var(--accent-soft); color: var(--accent-hover); }
-#status-bar .pill.run::before {
-    content: "";
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--accent);
-    animation: statpulse 1.2s ease-in-out infinite;
-}
-@keyframes statpulse {
-    0%, 100% { opacity: 0.35; transform: scale(0.8); }
-    50%      { opacity: 1;    transform: scale(1.15); }
-}
 
 /* ─── Form chrome (dropdown, slider, key field) ─── */
 .gradio-dropdown input,
@@ -453,13 +395,12 @@ footer, .show-api { display: none !important; }
     background: var(--panel) !important;
     color: var(--text) !important;
     border: 1px solid var(--border) !important;
-    border-radius: 7px !important;
+    border-radius: 6px !important;
     font-size: 13px !important;
 }
 .gradio-dropdown input:focus,
 .gradio-dropdown .wrap:focus-within {
     border-color: var(--accent) !important;
-    box-shadow: 0 0 0 3px var(--accent-soft) !important;
     outline: none !important;
 }
 input[type="range"] { accent-color: var(--accent) !important; }
@@ -470,11 +411,10 @@ input[type="range"] { accent-color: var(--accent) !important; }
     font-variant-numeric: tabular-nums;
 }
 input[type="password"], input[type="text"] {
-    border-radius: 7px !important;
+    border-radius: 6px !important;
 }
 input[type="password"]:focus, input[type="text"]:focus {
     border-color: var(--accent) !important;
-    box-shadow: 0 0 0 3px var(--accent-soft) !important;
 }
 
 /* inputs / textareas — never white on white */
@@ -491,8 +431,7 @@ ul[role="listbox"],
 .gradio-dropdown [role="listbox"] {
     background: #FFFFFF !important;
     border: 1px solid var(--border) !important;
-    border-radius: 9px !important;
-    box-shadow: var(--shadow-md) !important;
+    border-radius: 7px !important;
     color: #1A1A1A !important;
 }
 ul[role="listbox"] li,
@@ -600,12 +539,8 @@ with gr.Blocks(
     gr.HTML(
         """
         <div id="header">
-            <div class="title"><span class="mark">◆</span> Lean 4 Proof Assistant</div>
-            <div class="chips">
-                <span class="chip">Lean 4</span>
-                <span class="chip">Mathlib RAG</span>
-                <span class="chip">LangGraph</span>
-            </div>
+            <div class="title">Lean 4 Proof Assistant</div>
+            <div class="sub">Mathlib RAG · LangGraph · formally verified</div>
         </div>
         """
     )
